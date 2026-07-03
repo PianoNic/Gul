@@ -77,7 +77,8 @@ public sealed class TunnelForwardingMiddleware
         }
 
         WriteResponse(context, response);
-        await context.Response.Body.WriteAsync(response.Body, context.RequestAborted);
+        if (!IsBodyless(response.Status) && response.Body.Length > 0)
+            await context.Response.Body.WriteAsync(response.Body, context.RequestAborted);
     }
 
     private static async Task<TunnelRequest> BuildRequestAsync(HttpContext context)
@@ -101,8 +102,13 @@ public sealed class TunnelForwardingMiddleware
             if (HopByHop.Contains(name)) continue;
             context.Response.Headers[name] = values;
         }
-        context.Response.ContentLength = response.Body.Length;
+        if (!IsBodyless(response.Status))
+            context.Response.ContentLength = response.Body.Length;
     }
+
+    private static bool IsBodyless(int status) =>
+        status is StatusCodes.Status204NoContent or StatusCodes.Status304NotModified
+        || status is >= 100 and < 200;
 
     private bool TryGetSubdomain(string host, out string subdomain)
     {

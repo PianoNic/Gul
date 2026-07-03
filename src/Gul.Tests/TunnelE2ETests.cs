@@ -74,7 +74,13 @@ public class TunnelE2ETests
         if (postBody != "POST /echo ping")
             throw new Exception($"POST body mismatch: '{postBody}'");
 
-        Console.WriteLine($"E2E OK: {url} -> localhost:{targetPort}, GET and POST forwarded and returned.");
+        var nmResp = await publicClient.GetAsync("/nm", ct);
+        if (nmResp.StatusCode != HttpStatusCode.NotModified)
+            throw new Exception($"304 forward returned {(int)nmResp.StatusCode}");
+        if ((await nmResp.Content.ReadAsByteArrayAsync(ct)).Length != 0)
+            throw new Exception("304 response must have no body");
+
+        Console.WriteLine($"E2E OK: {url} -> localhost:{targetPort}, GET, POST, and 304 forwarded.");
     }
 
     private static async Task<WebApplication> StartTargetAsync()
@@ -83,6 +89,7 @@ public class TunnelE2ETests
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Logging.ClearProviders();
         var app = builder.Build();
+        app.MapGet("/nm", () => Results.StatusCode(304));
         app.MapGet("/{**path}", (HttpContext ctx) => $"GET {ctx.Request.Path}{ctx.Request.QueryString}");
         app.MapPost("/{**path}", async (HttpContext ctx) =>
         {
