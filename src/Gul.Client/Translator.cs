@@ -17,6 +17,8 @@ public sealed partial class Translator
     [GeneratedRegex(@"https?://[A-Za-z0-9._-]+(?::\d+)?", RegexOptions.IgnoreCase)]
     private static partial Regex UrlPattern();
 
+    private static readonly HashSet<string> RedirectParams = new(StringComparer.OrdinalIgnoreCase) { "redirect_uri", "post_logout_redirect_uri" };
+
     private readonly string _mode;
     private readonly HashSet<string> _allow;
     private readonly string _primary;
@@ -24,6 +26,7 @@ public sealed partial class Translator
     private readonly string _suffix;
     private readonly string _publicScheme;
     private readonly string? _publicPort;
+    private readonly string _apexOrigin;
     private readonly ConcurrentDictionary<string, string> _idToTarget = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _targetToId = new(StringComparer.OrdinalIgnoreCase);
 
@@ -42,7 +45,46 @@ public sealed partial class Translator
         _primary = "http://localhost:" + primaryPort;
         _mode = string.IsNullOrWhiteSpace(mode) ? "all" : mode.Trim().ToLowerInvariant();
         _allow = new HashSet<string>(allowHosts ?? [], StringComparer.OrdinalIgnoreCase);
+        _apexOrigin = _publicScheme + "://" + _apex + (_publicPort is null ? "" : ":" + _publicPort);
     }
+
+    public string RewriteRequestUrl(string url)
+    {
+        Uri uri;
+        try { uri = new Uri(url); }
+        catch { return url; }
+        if (!IsOwnHost(uri.Host)) return url;
+        var hostHeader = uri.Host + (uri.IsDefaultPort ? "" : ":" + uri.Port);
+        var target = ResolveTarget(hostHeader);
+        if (target is null) return url;
+        var path = uri.PathAndQuery;
+        return path == "/" ? target : target + path;
+    }
+
+    public string RewriteRedirectParams(string urlEncoded)
+    {
+        if (string.IsNullOrEmpty(urlEncoded)) return urlEncoded;
+        var pairs = urlEncoded.Split('&');
+        var changed = false;
+        for (var i = 0; i < pairs.Length; i++)
+        {
+            var eq = pairs[i].IndexOf('=');
+            if (eq < 0) continue;
+            var key = pairs[i][..eq];
+            if (!RedirectParams.Contains(Uri.UnescapeDataString(key))) continue;
+            var decoded = Uri.UnescapeDataString(pairs[i][(eq + 1)..]);
+            var rewritten = RewriteRequestUrl(decoded);
+            if (rewritten != decoded)
+            {
+                if (decoded.EndsWith('/') && !rewritten.EndsWith('/')) rewritten += "/";
+                pairs[i] = key + "=" + Uri.EscapeDataString(rewritten);
+                changed = true;
+            }
+        }
+        return changed ? string.Join("&", pairs) : urlEncoded;
+    }
+
+    private bool IsOwnHost(string host) => host.Equals(_apex, StringComparison.OrdinalIgnoreCase) || host.EndsWith(_suffix, StringComparison.OrdinalIgnoreCase);
 
     public string? ResolveTarget(string? hostHeader)
     {
@@ -91,6 +133,7 @@ public sealed partial class Translator
         if (!ShouldTranslate(host, port)) return matched;
 
         var targetBase = uri.Scheme + "://" + host + (port ?? "");
+        if (string.Equals(targetBase, _primary, StringComparison.OrdinalIgnoreCase)) return _apexOrigin;
         var id = GetOrAllocateId(targetBase);
         return _publicScheme + "://" + id + _suffix + (_publicPort is null ? "" : ":" + _publicPort);
     }

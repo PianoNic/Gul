@@ -86,9 +86,34 @@ public sealed class TunnelClient
 
         try
         {
-            using var message = new HttpRequestMessage(new HttpMethod(req.Method), new Uri(new Uri(target), req.Path));
+            var path = req.Path;
+            if (_translator is not null)
+            {
+                var qIndex = path.IndexOf('?');
+                if (qIndex >= 0)
+                {
+                    var pathPart = path[..qIndex];
+                    var query = _translator.RewriteRedirectParams(path[(qIndex + 1)..]);
+                    path = pathPart + "?" + query;
+                }
+            }
+
+            using var message = new HttpRequestMessage(new HttpMethod(req.Method), new Uri(new Uri(target), path));
 
             var body = req.Body ?? [];
+            if (_translator is not null && body.Length > 0)
+            {
+                var contentType = req.Headers
+                    .FirstOrDefault(h => string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase))
+                    .Value?.FirstOrDefault();
+                if (contentType is not null && contentType.Contains("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+                {
+                    var formStr = Encoding.UTF8.GetString(body);
+                    var rewrittenForm = _translator.RewriteRedirectParams(formStr);
+                    if (rewrittenForm != formStr) body = Encoding.UTF8.GetBytes(rewrittenForm);
+                }
+            }
+
             HttpContent? content = body.Length > 0 ? new ByteArrayContent(body) : null;
 
             foreach (var (name, values) in req.Headers)
@@ -97,9 +122,15 @@ public sealed class TunnelClient
 
                 if (HopByHop.Contains(name)) continue;
 
-                if (message.Headers.TryAddWithoutValidation(name, values)) continue;
+                var outValues = values;
+                if (_translator is not null
+                    && (string.Equals(name, "Origin", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(name, "Referer", StringComparison.OrdinalIgnoreCase)))
+                    outValues = [.. values.Select(_translator.RewriteRequestUrl)];
+
+                if (message.Headers.TryAddWithoutValidation(name, outValues)) continue;
                 content ??= new ByteArrayContent(body);
-                content.Headers.TryAddWithoutValidation(name, values);
+                content.Headers.TryAddWithoutValidation(name, outValues);
             }
 
             message.Content = content;
@@ -118,6 +149,9 @@ public sealed class TunnelClient
 
                 if (headers.TryGetValue("Location", out var location) && location.Length > 0 && !string.IsNullOrEmpty(location[0]))
                     headers["Location"] = [_translator.RewriteLocation(location[0])];
+
+                if (headers.TryGetValue("Access-Control-Allow-Origin", out var acao) && acao.Length > 0 && !string.IsNullOrEmpty(acao[0]))
+                    headers["Access-Control-Allow-Origin"] = [.. acao.Select(_translator.RewriteLocation)];
             }
 
             return new TunnelResponse((int)response.StatusCode, headers, responseBody);

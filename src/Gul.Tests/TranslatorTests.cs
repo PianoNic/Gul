@@ -72,4 +72,62 @@ public class TranslatorTests
         if (target != "http://localhost:3000")
             throw new Exception($"ResolveTarget apex returned '{target}'");
     }
+
+    [Test]
+    public void Bidirectional_origin_translation()
+    {
+        var t = new Translator(PublicUrl, 4000, "all", null);
+        var input = "a http://localhost:8000/api b http://localhost:4000/ c";
+        var output = Encoding.UTF8.GetString(t.RewriteBody(Encoding.UTF8.GetBytes(input)));
+
+        var routeHost = RouteHostPattern.Match(output).Value;
+        if (string.IsNullOrEmpty(routeHost))
+            throw new Exception($"Could not extract route host from: '{output}'");
+
+        var location = t.RewriteLocation("http://localhost:4000");
+        if (location != "http://happy-otter.localhost:5080")
+            throw new Exception($"RewriteLocation primary returned '{location}'");
+
+        var apexBack = t.RewriteRequestUrl("http://happy-otter.localhost:5080");
+        if (apexBack != "http://localhost:4000")
+            throw new Exception($"RewriteRequestUrl apex returned '{apexBack}'");
+
+        var routeBack = t.RewriteRequestUrl("http://" + routeHost + ":5080");
+        if (routeBack != "http://localhost:8000")
+            throw new Exception($"RewriteRequestUrl route returned '{routeBack}'");
+
+        var external = t.RewriteRequestUrl("https://cdn.example.com/x");
+        if (external != "https://cdn.example.com/x")
+            throw new Exception($"RewriteRequestUrl external returned '{external}'");
+
+        var star = t.RewriteLocation("*");
+        if (star != "*")
+            throw new Exception($"RewriteLocation('*') returned '{star}'");
+    }
+
+    [Test]
+    public void RedirectParams_are_rewritten_inbound()
+    {
+        var t = new Translator(PublicUrl, 4000, "all", null);
+
+        var apexRedirect = "client_id=web&redirect_uri=" + Uri.EscapeDataString("http://happy-otter.localhost:5080/") + "&scope=openid";
+        var apexOut = t.RewriteRedirectParams(apexRedirect);
+        var apexPairs = apexOut.Split('&').Select(p => p.Split('=', 2)).ToDictionary(p => p[0], p => p[1]);
+        if (Uri.UnescapeDataString(apexPairs["redirect_uri"]) != "http://localhost:4000/")
+            throw new Exception($"redirect_uri not mapped back to primary: '{apexOut}'");
+        if (apexPairs["client_id"] != "web")
+            throw new Exception($"client_id was altered: '{apexOut}'");
+        if (apexPairs["scope"] != "openid")
+            throw new Exception($"scope was altered: '{apexOut}'");
+
+        var external = "redirect_uri=" + Uri.EscapeDataString("https://real.example.com/cb");
+        var externalOut = t.RewriteRedirectParams(external);
+        if (externalOut != external)
+            throw new Exception($"non-gul redirect_uri should be unchanged, got: '{externalOut}'");
+
+        var stateParam = "state=" + Uri.EscapeDataString("http://happy-otter.localhost:5080/x");
+        var stateOut = t.RewriteRedirectParams(stateParam);
+        if (stateOut != stateParam)
+            throw new Exception($"non-redirect param should be unchanged, got: '{stateOut}'");
+    }
 }
