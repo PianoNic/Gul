@@ -10,7 +10,10 @@ public sealed class TunnelHub(TunnelRegistry registry, IConfiguration configurat
     {
         var subdomain = registry.Add(requestedSubdomain, Context.ConnectionId);
         var baseDomain = configuration["Gul:BaseDomain"] ?? "localhost";
-        return $"https://{subdomain}.{baseDomain}";
+        var scheme = configuration["Gul:PublicScheme"] ?? "https";
+        var port = configuration["Gul:PublicPort"];
+        var host = string.IsNullOrEmpty(port) ? $"{subdomain}.{baseDomain}" : $"{subdomain}.{baseDomain}:{port}";
+        return $"{scheme}://{host}";
     }
 
     public override Task OnDisconnectedAsync(Exception? exception)
