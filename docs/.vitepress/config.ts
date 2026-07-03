@@ -14,6 +14,7 @@ export default defineConfig({
     nav: [
       { text: 'Intro', link: '/intro' },
       { text: 'Translator', link: '/translator' },
+      { text: 'OIDC', link: '/oidc' },
       { text: 'Self-host', link: '/self-host' },
       { text: 'CLI', link: '/cli' },
       { text: 'Development', link: '/dev-setup' },
@@ -21,6 +22,7 @@ export default defineConfig({
     sidebar: [
       { text: 'What is Gul?', link: '/intro' },
       { text: 'Auto-router translator', link: '/translator' },
+      { text: 'OIDC providers', link: '/oidc' },
       {
         text: 'Setup',
         collapsed: false,
