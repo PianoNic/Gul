@@ -48,11 +48,11 @@ public sealed class TunnelClient
             try
             {
                 var url = await connection.InvokeAsync<string>("Register", _requestedName, CancellationToken.None);
-                Console.WriteLine($"Reconnected. Tunnel live:  {url}  ->  http://localhost:{_port}");
+                Console.WriteLine($"{Ui.Green("Reconnected.")}  {Ui.Url(url)}  {Ui.Dim("->")}  {Ui.Dim($"http://localhost:{_port}")}");
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Re-registration after reconnect failed: {ex.Message}");
+                Ui.Err($"Re-registration after reconnect failed: {ex.Message}");
             }
         };
 
@@ -60,8 +60,11 @@ public sealed class TunnelClient
         try
         {
             var publicUrl = await connection.InvokeAsync<string>("Register", _requestedName, ct);
-            Console.WriteLine($"Tunnel live:  {publicUrl}  ->  http://localhost:{_port}");
-            Console.WriteLine("Press Ctrl+C to stop.");
+            Console.WriteLine();
+            Console.WriteLine($"  {Ui.Badge}  {Ui.Green("Tunnel live")}");
+            Console.WriteLine($"  {Ui.Url(publicUrl)}  {Ui.Dim("->")}  {Ui.Dim($"http://localhost:{_port}")}");
+            Console.WriteLine();
+            Console.WriteLine(Ui.Dim("  Press Ctrl+C to stop."));
 
             await Task.Delay(Timeout.Infinite, ct);
         }

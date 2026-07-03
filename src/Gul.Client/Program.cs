@@ -1,5 +1,7 @@
 using Gul.Client;
 
+try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch { }
+
 if (args.Length == 0 || args[0] is "--help" or "-h" or "help")
 {
     PrintUsage();
@@ -38,7 +40,7 @@ static int Remote(string[] args)
 
     config.ServerUrl = url;
     config.Save();
-    Console.WriteLine($"Server set to {url}");
+    Console.WriteLine($"Server set to {Ui.Url(url)}");
     Console.WriteLine("Next: run 'gul login' to sign in.");
     return 0;
 }
@@ -77,7 +79,7 @@ static async Task<int> LoginAsync()
     var config = Config.Load();
     if (string.IsNullOrWhiteSpace(config.ServerUrl) || !TryNormalizeServerUrl(config.ServerUrl, out _, out _))
     {
-        Console.Error.WriteLine("No valid server configured. Run 'gul remote <url>' first (e.g. gul remote https://gul.example.com).");
+        Ui.Err("No valid server configured. Run 'gul remote <url>' first (e.g. gul remote https://gul.example.com).");
         return 1;
     }
 
@@ -86,12 +88,12 @@ static async Task<int> LoginAsync()
         Console.WriteLine("Opening your browser to sign in...");
         var tokens = await OidcLogin.LoginAsync(config.ServerUrl);
         StoreTokens(config, tokens);
-        Console.WriteLine("Login successful.");
+        Console.WriteLine(Ui.Green("Login successful."));
         return 0;
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"Login failed: {ex.Message}");
+        Ui.Err($"Login failed: {ex.Message}");
         return 1;
     }
 }
@@ -138,7 +140,7 @@ static async Task<int> TunnelAsync(string[] args)
     var config = Config.Load();
     if (string.IsNullOrWhiteSpace(config.ServerUrl) || !TryNormalizeServerUrl(config.ServerUrl, out _, out _))
     {
-        Console.Error.WriteLine("No valid server configured. Run 'gul remote <url>' first (e.g. gul remote https://gul.example.com).");
+        Ui.Err("No valid server configured. Run 'gul remote <url>' first (e.g. gul remote https://gul.example.com).");
         return 1;
     }
 
@@ -162,7 +164,7 @@ static async Task<int> TunnelAsync(string[] args)
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"Tunnel error: {ex.Message}");
+        Ui.Err($"Tunnel error: {ex.Message}");
         return 1;
     }
 
@@ -203,7 +205,7 @@ static async Task<bool> EnsureTokenAsync(Config config)
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"Login failed: {ex.Message}");
+        Ui.Err($"Login failed: {ex.Message}");
         return false;
     }
 }
@@ -218,10 +220,9 @@ static void StoreTokens(Config config, OidcLogin.Tokens tokens)
 
 static void PrintUsage()
 {
+    Ui.Banner();
     Console.WriteLine(
         """
-        gul - instant public HTTPS URLs for your localhost
-
         Usage:
           gul remote [<url>]         Set (or show) the Gul server URL
           gul login                  Sign in via your browser (OIDC)

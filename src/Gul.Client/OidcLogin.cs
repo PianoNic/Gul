@@ -76,8 +76,8 @@ public static class OidcLogin
             Console.WriteLine(opened
                 ? "Opened your browser to sign in. If it didn't open, use this URL:"
                 : "Couldn't open a browser automatically. Open this URL to sign in:");
-            Console.WriteLine("  " + authorizeUrl);
-            Console.WriteLine("(press 'c' to copy the URL to your clipboard)");
+            Console.WriteLine("  " + Ui.Url(authorizeUrl));
+            Console.WriteLine(Ui.Dim("(press 'c' to copy the URL to your clipboard)"));
 
             using var keyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             var keyTask = OfferClipboardCopyAsync(authorizeUrl, keyCts.Token);
@@ -246,8 +246,8 @@ public static class OidcLogin
             {
                 if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.C)
                     Console.WriteLine(CopyToClipboard(url)
-                        ? "Copied the URL to your clipboard."
-                        : "Couldn't access the clipboard; copy the URL above manually.");
+                        ? Ui.Green("Copied the URL to your clipboard.")
+                        : Ui.Yellow("Couldn't access the clipboard; copy the URL above manually."));
                 await Task.Delay(150, ct);
             }
         }
