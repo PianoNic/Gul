@@ -2,6 +2,7 @@
 
 Run the Gul server from the pre-built image:
 
+- **Docker Hub**: `pianonic/gul:latest`
 - **GitHub Container Registry**: `ghcr.io/pianonic/gul:latest`
 
 You need a Linux/Windows host with **Docker + Compose v2**, and an **existing reverse proxy** that already terminates TLS for a wildcard domain. Gul does not do TLS or DNS itself. It reads the `Host` header, matches a subdomain, and forwards. The proxy and the certificates are yours.
