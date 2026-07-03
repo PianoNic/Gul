@@ -70,24 +70,9 @@ Because your services now live on different gul origins (the apex for your prima
 
 Cross-service `fetch` and `XHR` calls just succeed, with no CORS configuration changes.
 
-## OIDC and auth flows
+## OIDC providers
 
-Apps behind a self-hosted OIDC provider log in through the tunnel with no provider config. When the app starts a login, its `redirect_uri` points at the gul origin, but the provider only allows the original `localhost` callback. Gul bridges the gap.
-
-- It rewrites `redirect_uri` and `post_logout_redirect_uri` on requests forwarded to the provider, turning the gul URL back into the `localhost` callback the provider already allows, so the provider accepts the request.
-- After you log in, the provider redirects to that `localhost` callback, and Gul rewrites the `Location` back to the gul origin, so the browser lands back inside the tunnel with the authorization code.
-
-This works with any standard OAuth2 or OIDC provider you host yourself, including **Keycloak, Authentik, Zitadel, Pocket ID, and Dex**. PKCE, `state`, and `nonce` are opaque to Gul and pass through untouched.
-
-**Cloud providers** (Auth0, Okta, Google, Microsoft Entra, AWS Cognito) are different. Their login page is public, so the browser reaches them directly rather than through the tunnel, and there is no `localhost` callback to map back to. For those, add the gul public URL to the app's allowed redirect URIs once. Use a stable subdomain so the URL never changes:
-
-```bash
-gul 3000 --name myapp
-```
-
-Then whitelist `https://myapp.gul.example.com/*` in the provider's client settings.
-
-The reliable path for cloud providers is the default `loopback`, so the provider's own login page and its background requests are reached directly and never rewritten. Routing a provider through the tunnel with `all` or `aggressive` breaks the login: the discovery `issuer` gets rewritten to a gul route while the signed token keeps its real issuer, and the client rejects the mismatch. Keep the provider direct. One caveat: some providers (Microsoft Entra for example) only accept `https` redirect URIs, or exactly `http://localhost`, so a local `http://myapp.localhost:5080` callback will not register. Test those against your real `https` gul deployment, or point the app at an `http://localhost:<port>` callback for local development.
+Add your gul URL as a callback URL in the provider, and keep translation on the default `loopback`. A provider on `localhost` needs nothing: gul routes it and rewrites `redirect_uri` for you. Do not route the provider with `all` or `aggressive`, since its discovery `issuer` gets rewritten but the signed token does not, so login fails. Full detail on the [OIDC providers](./oidc.md) page.
 
 ## Configuration
 
@@ -98,7 +83,7 @@ Translation is on by default for your local services, the loopback hosts (`local
 | `Translate` | `loopback`, `allowlist`, `all`, `aggressive`, `off` | `loopback` | `loopback` (the default) rewrites only loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). `allowlist` also rewrites the hosts listed in `TranslateHosts`. `all` rewrites every absolute `http(s)` URL including external ones, which can break third-party services like Microsoft or Google, so use it deliberately. `aggressive` rewrites every host like `all` and additionally rewrites every response header rather than just `Location`, for the rare app that hides local URLs in unusual headers. `off` disables translation entirely. |
 | `TranslateHosts` | `string[]` | `[]` | The hosts to rewrite when `Translate` is `allowlist`. Ignored in the other modes. |
 
-Do not route an OIDC provider through the tunnel, not even with `aggressive` mode. Routing it rewrites the provider's discovery `issuer` to a gul route, while the signed `id_token` keeps its real issuer, so the client library rejects the token with a validation error and the login never completes. Keep the provider on the default `loopback` so it is reached directly, register your gul URL with it, and serve your own API and hub same-origin as the app so the access token attaches. See [OIDC providers](./oidc.md).
+For an OIDC provider, keep the default `loopback` and add your gul URL as a callback URL. Routing it with `all` or `aggressive` rewrites the discovery `issuer` but not the signed token, so login fails. See [OIDC providers](./oidc.md).
 
 Both live in the client config file (`~/.gul/config.json`). See the [CLI config reference](./cli.md#configuration-file).
 
