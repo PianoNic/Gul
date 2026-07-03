@@ -59,6 +59,32 @@ All of this happens client-side, on your machine. The server just forwards bytes
 - **Text response bodies** such as HTML, CSS, JavaScript, and JSON. Binary bodies are left untouched.
 - **The `Location` redirect header**, so a `3xx` that points at another local service keeps working through the tunnel.
 
+## CORS
+
+Because your services now live on different gul origins (the apex for your primary app, `<routeId>.<sub>` for each translated service), a browser treats calls between them as cross-origin and would normally block them. Gul handles this for you with bidirectional origin translation.
+
+- On the way in, it rewrites the `Origin` and `Referer` request headers from the gul origin back to the real local origin, so your service's CORS check sees the origin it was configured for.
+- On the way out, it rewrites `Access-Control-Allow-Origin` from the local origin to the gul origin, so the browser is satisfied.
+
+Cross-service `fetch` and `XHR` calls just succeed, with no CORS configuration changes.
+
+## OIDC and auth flows
+
+Apps behind a self-hosted OIDC provider log in through the tunnel with no provider config. When the app starts a login, its `redirect_uri` points at the gul origin, but the provider only allows the original `localhost` callback. Gul bridges the gap.
+
+- It rewrites `redirect_uri` and `post_logout_redirect_uri` on requests forwarded to the provider, turning the gul URL back into the `localhost` callback the provider already allows, so the provider accepts the request.
+- After you log in, the provider redirects to that `localhost` callback, and Gul rewrites the `Location` back to the gul origin, so the browser lands back inside the tunnel with the authorization code.
+
+This works with any standard OAuth2 or OIDC provider you host yourself, including **Keycloak, Authentik, Zitadel, Pocket ID, and Dex**. PKCE, `state`, and `nonce` are opaque to Gul and pass through untouched.
+
+**Cloud providers** (Auth0, Okta, Google, Microsoft Entra, AWS Cognito) are different. Their login page is public, so the browser reaches them directly rather than through the tunnel, and there is no `localhost` callback to map back to. For those, add the gul public URL to the app's allowed redirect URIs once. Use a stable subdomain so the URL never changes:
+
+```bash
+gul 3000 --name myapp
+```
+
+Then whitelist `https://myapp.gul.example.com/*` in the provider's client settings.
+
 ## Configuration
 
 Translation is on by default and rewrites every absolute URL it finds, loopback hosts and external hosts alike. Two settings tune it.

@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Gul
-  text: Your localhost, live on the internet.
-  tagline: Instant public HTTPS URLs for anything running on your machine. One command, one tunnel, zero config.
+  text: Your whole local stack on one public URL.
+  tagline: The self-hosted tunnel that puts your entire multi-service dev setup on a single HTTPS URL. Cross-service links, CORS, and OIDC login all just work, with zero code changes.
   image:
     src: /logo.svg
     alt: Gul
@@ -20,14 +20,16 @@ hero:
       link: https://github.com/PianoNic/Gul
 
 features:
-  - title: One command
-    details: Run `gul 3000` and your local port is live at https://happy-otter.gul.example.com, TLS included.
-  - title: Your whole stack on one URL
-    details: Gul rewrites cross-service links in your app's responses into routes that forward back to the right local port, so a multi-service setup works through one tunnel.
-  - title: Random or named subdomains
-    details: Get a friendly name like happy-otter by default, or claim your own with `--name myapp`.
+  - title: One tunnel for your whole stack
+    details: The auto-router translator rewrites cross-service local URLs (a frontend on `:3000` calling `http://localhost:8000`) into gul routes on the fly, and routes them back to the right port. Your entire multi-service setup runs through one URL. No other local tunnel does this.
+  - title: CORS just works
+    details: Your services now sit on different gul origins, so browsers would normally block the calls between them. Gul does bidirectional origin translation on Origin, Referer, and Access-Control-Allow-Origin, so cross-service requests just succeed.
+  - title: OIDC login just works
+    details: Apps behind a self-hosted OIDC provider (Keycloak, Authentik, Zitadel, Pocket ID, Dex) log in straight through the tunnel with zero provider config. Gul rewrites `redirect_uri` inbound and the login callback lands right back in the tunnel.
+  - title: Self-hosted, you own it all
+    details: You run the server, you own the domain, and you keep the data. No third party sees your traffic and there is no database to manage.
   - title: Secured control plane
-    details: Only you can open tunnels. A browser OIDC login guards the control connection, and visitors stay anonymous.
+    details: Only you can open tunnels, guarded by a browser OIDC login with Authorization Code and PKCE. Visitors to your tunnel URL stay anonymous, exactly like any other public site.
   - title: One small binary
-    details: A single self-contained .NET CLI over a SignalR connection. No agent, no daemon, no database.
+    details: A single self-contained CLI, built for 6 targets across Windows, Linux, and macOS on x64 and arm64, installable with one line. Colored output, a 굴 badge, and friendly subdomains included.
 ---
