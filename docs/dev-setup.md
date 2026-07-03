@@ -91,7 +91,7 @@ The CLI writes its config to `~/.gul/config.json` just like a release build. Del
 
 Don't have a real OIDC provider handy? Spin up a throwaway one in Docker. The [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) speaks full OIDC (discovery, Authorization Code + PKCE, JWKS) and issues real signed tokens, so you can exercise `gul login` end-to-end without registering a client anywhere.
 
-The mock and the server both point at the **same** authority, `http://localhost:8090/default`, so the token's `iss` claim matches what the server validates, with no config drift and no code changes. `appsettings.Development.json` already carries these values, so the server needs no extra setup.
+The mock and the server both point at the **same** authority, `http://localhost:8090/default`, so the token's `iss` claim matches what the server validates. `appsettings.Development.json` already carries these values, so the server needs no extra setup.
 
 ::: tip
 The issuer is derived from the request host, so `localhost` and `127.0.0.1` are *different* issuers to the mock. Keep everything on `localhost:8090` and the `iss` in the JWT will line up with what the server expects.
