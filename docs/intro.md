@@ -4,7 +4,7 @@ Gul is a self-hosted devtunnel that puts your **whole local stack on one public 
 
 - **One command.** `gul 3000` opens a tunnel and prints the public URL. Ctrl+C closes it.
 - **Your whole stack on one URL.** The auto-router translator rewrites cross-service local URLs in your app's responses into gul routes on the fly, and forwards them back to the right local port, so a multi-service setup works through a single tunnel with zero code changes. See [Auto-router translator](./translator).
-- **CORS and OIDC just work.** Cross-service browser calls succeed and self-hosted OIDC logins go straight through the tunnel, with no config on your side.
+- **CORS and OIDC.** Cross-service browser calls succeed, and OIDC logins work once you add your gul URL as a callback in the provider. A provider on `localhost` needs nothing.
 - **Random or named subdomains.** You get a friendly name like `happy-otter` by default, or claim your own with `--name myapp`.
 - **Secured control plane, anonymous visitors.** Opening a tunnel requires a browser OIDC login, so only you can expose your machine. The people who visit your tunnel URL are anonymous, exactly like any other public site.
 - **No database, no agent.** The server keeps its tunnel table in memory, and the client is one small self-contained binary. A tunnel is just a live connection.
@@ -13,7 +13,7 @@ Gul is deliberately small: **two .NET projects**, no database, no message broker
 
 ## Why Gul
 
-Every other local tunnel (ngrok, cloudflared, localtunnel) exposes a **single port**. That is fine until your dev setup is more than one service, and then everything breaks the moment it goes through the tunnel. A frontend calls `http://localhost:8000` and hits nothing. The browser blocks the call for a cross-origin violation. Your login bounces off the OIDC provider because the redirect no longer matches. Gul fixes all three, automatically. These are the things no single-port tunnel can do.
+Every other local tunnel (ngrok, cloudflared, localtunnel) exposes a **single port**. That is fine until your dev setup is more than one service, and then everything breaks the moment it goes through the tunnel. A frontend calls `http://localhost:8000` and hits nothing. The browser blocks the call for a cross-origin violation. Your login bounces off the OIDC provider because the redirect no longer matches. Gul handles all three. These are the things no single-port tunnel can do.
 
 ### 1. Auto-router translator
 
@@ -23,9 +23,9 @@ This is the flagship, and no other local tunnel does it. One tunnel exposes your
 
 Because your services now sit on different gul origins, browsers would normally block the calls between them. Gul does bidirectional origin translation. It rewrites `Origin` and `Referer` inbound to the local origin, and `Access-Control-Allow-Origin` outbound to the gul origin, so the cross-service calls just succeed.
 
-### 3. OIDC just works
+### 3. OIDC
 
-Apps behind a self-hosted OIDC provider (Keycloak, Authentik, Zitadel, Pocket ID, Dex, and any standard OAuth2 or OIDC server) log in straight through the tunnel with zero provider config. Gul rewrites `redirect_uri` and `post_logout_redirect_uri` inbound to the localhost callback the provider already allows, and the login callback lands back in the tunnel via the `Location` rewrite. Cloud providers (Auth0, Okta, Google, Entra, Cognito) just need the gul public URL whitelisted once, so use a stable `--name`.
+Add your gul URL as a callback in your provider and logins flow through the tunnel. A provider on `localhost` needs nothing, since gul rewrites `redirect_uri` for you. For any other provider, register `https://<name>.gul.example.com/*` once. See [OIDC providers](./oidc).
 
 ### How it compares
 
@@ -34,7 +34,7 @@ Apps behind a self-hosted OIDC provider (Keycloak, Authentik, Zitadel, Pocket ID
 | **Exposes** | One port | Your whole multi-service stack on one URL |
 | **Cross-service links** | Break, you rewrite them by hand | Rewritten automatically by the translator |
 | **CORS** | Blocked, you reconfigure every service | Bidirectional origin translation, just works |
-| **Self-hosted OIDC login** | Breaks on redirect mismatch | Rewritten inbound, zero provider config |
+| **OIDC login** | Breaks on redirect mismatch | Add your gul URL as a callback, automatic on localhost |
 | **Hosting** | Someone else's servers see your traffic | Self-hosted, you own the domain and the data |
 
 ## How a request flows
