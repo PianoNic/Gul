@@ -206,7 +206,14 @@ public sealed class TunnelForwardingMiddleware
 
         var headers = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         foreach (var header in context.Request.Headers)
+        {
+            // Don't leak the edge proxy's forwarding headers down to the local app; it must see
+            // its own localhost origin so translated OIDC issuers/redirects line up.
+            if (header.Key.StartsWith("X-Forwarded-", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(header.Key, "Forwarded", StringComparison.OrdinalIgnoreCase))
+                continue;
             headers[header.Key] = header.Value.Select(v => v ?? string.Empty).ToArray();
+        }
 
         var path = context.Request.Path + context.Request.QueryString;
         return new TunnelRequest(context.Request.Method, path, headers, buffer.ToArray());
