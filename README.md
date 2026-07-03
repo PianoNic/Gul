@@ -36,7 +36,7 @@ Other tunnels (ngrok, cloudflared, localtunnel) expose a single port. The moment
 
 **After.** Gul spots `http://localhost:8000` in the response and turns it into `http://<id>.<yoursub>.localhost:5080` before the bytes ever leave your machine. The visitor's browser follows that route back through the same tunnel to your local `:8000`. Frontend, API, auth, and everything else just work through one public URL.
 
-By default Gul translates everything, every absolute `http(s)` URL it finds, loopback hosts and external hosts alike. Want a tighter net? Restrict it to loopback-only or to an explicit allowlist with the `Translate` config value or the `--translate` flag. Rewriting covers text response bodies (HTML, CSS, JS, JSON, and the like) and the `Location` redirect header, and it all happens client-side, on your machine. Full details on the [Auto-router translator](https://docs.gul.pianonic.ch/translator) page.
+By default Gul translates only your **local** services, the loopback hosts (`localhost`, `127.0.0.1`), and leaves external services like Microsoft, Google, and CDNs completely untouched so your browser reaches them directly. To also route specific external hosts through the tunnel, use an explicit `allowlist`, or `all` to route everything, via the `Translate` config value or the `--translate` flag. Rewriting covers text response bodies (HTML, CSS, JS, JSON, and the like) and the `Location` redirect header, and it all happens client-side, on your machine. Full details on the [Auto-router translator](https://docs.gul.pianonic.ch/translator) page.
 
 ## Solid foundations
 
@@ -77,7 +77,7 @@ sequenceDiagram
 
 ## Features
 
-- **Auto-router translator.** Your whole multi-service stack on one URL. Gul rewrites cross-service links in your app's responses (and the `Location` redirect header) into gul routes that forward back to the right local port, so your frontend, API, and auth all work through a single tunnel with zero code changes. Translate everything by default, or narrow it to loopback-only or an allowlist with `--translate`. No other local tunnel does this.
+- **Auto-router translator.** Your whole multi-service stack on one URL. Gul rewrites cross-service links in your app's responses (and the `Location` redirect header) into gul routes that forward back to the right local port, so your frontend, API, and auth all work through a single tunnel with zero code changes. Translates your local loopback services by default and leaves external services alone. Opt into an allowlist or `all` with `--translate`. No other local tunnel does this.
 - **CORS just works.** Bidirectional origin translation rewrites `Origin` and `Referer` inbound to the local origin and `Access-Control-Allow-Origin` outbound to the gul origin, so cross-service browser calls succeed instead of getting blocked.
 - **OIDC just works.** Apps behind a self-hosted OIDC provider log in straight through the tunnel with zero provider config, because Gul rewrites `redirect_uri` and `post_logout_redirect_uri` to the callback the provider already allows. Cloud providers just need the gul public URL whitelisted once.
 - **One command.** `gul 3000` and your local port is live at a public HTTPS URL.

@@ -85,13 +85,15 @@ gul 3000 --name myapp
 
 Then whitelist `https://myapp.gul.example.com/*` in the provider's client settings.
 
+Keep translation at the default `loopback` for cloud providers, so the provider's own login page and its background requests are reached directly and never rewritten (routing them through the tunnel breaks their CORS and cookies). One caveat: some providers (Microsoft Entra for example) only accept `https` redirect URIs, or exactly `http://localhost`, so a local `http://myapp.localhost:5080` callback will not register. Test those against your real `https` gul deployment, or point the app at an `http://localhost:<port>` callback for local development.
+
 ## Configuration
 
-Translation is on by default and rewrites every absolute URL it finds, loopback hosts and external hosts alike. Two settings tune it.
+Translation is on by default for your local services, the loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). External hosts stay untouched, so services like Microsoft, Google, and CDNs are reached directly by the browser. Two settings tune it.
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |
-| `Translate` | `all`, `loopback`, `allowlist`, `off` | `all` | `all` rewrites every absolute `http(s)` URL. `loopback` rewrites only loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). `allowlist` rewrites only the hosts listed in `TranslateHosts`. `off` disables translation entirely. |
+| `Translate` | `loopback`, `allowlist`, `all`, `off` | `loopback` | `loopback` (the default) rewrites only loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). `allowlist` also rewrites the hosts listed in `TranslateHosts`. `all` rewrites every absolute `http(s)` URL including external ones, which can break third-party services like Microsoft or Google, so use it deliberately. `off` disables translation entirely. |
 | `TranslateHosts` | `string[]` | `[]` | The hosts to rewrite when `Translate` is `allowlist`. Ignored in the other modes. |
 
 Both live in the client config file (`~/.gul/config.json`). See the [CLI config reference](./cli.md#configuration-file).

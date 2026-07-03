@@ -103,14 +103,14 @@ Everything the CLI remembers lives in a single JSON file:
   "AccessToken": "eyJhbGciOi...",
   "RefreshToken": "def502...",
   "ExpiresAtUtc": "2026-07-03T18:42:00Z",
-  "Translate": "all",
+  "Translate": "loopback",
   "TranslateHosts": []
 }
 ```
 
 - **`ServerUrl`** is set by `gul remote`.
 - The token fields are written by `gul login` and refreshed automatically before a tunnel opens. `gul logout` clears them.
-- **`Translate`** controls URL translation. It takes `all` (the default), `loopback`, `allowlist`, or `off`, and the `--translate` flag overrides it for a single run. See [Auto-router translator](./translator.md).
+- **`Translate`** controls URL translation. It takes `loopback` (the default), `allowlist`, `all`, or `off`, and the `--translate` flag overrides it for a single run. See [Auto-router translator](./translator.md).
 - **`TranslateHosts`** is the list of hosts to rewrite when `Translate` is `allowlist`, and it is ignored in the other modes.
 - Delete the file to start completely fresh, or re-run `gul remote <url>` to repoint at a different server.
 

@@ -43,7 +43,7 @@ public sealed partial class Translator
         _suffix = "." + _apex;
 
         _primary = "http://localhost:" + primaryPort;
-        _mode = string.IsNullOrWhiteSpace(mode) ? "all" : mode.Trim().ToLowerInvariant();
+        _mode = string.IsNullOrWhiteSpace(mode) ? "loopback" : mode.Trim().ToLowerInvariant();
         _allow = new HashSet<string>(allowHosts ?? [], StringComparer.OrdinalIgnoreCase);
         _apexOrigin = _publicScheme + "://" + _apex + (_publicPort is null ? "" : ":" + _publicPort);
     }
