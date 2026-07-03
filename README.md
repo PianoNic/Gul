@@ -74,7 +74,7 @@ irm https://raw.githubusercontent.com/PianoNic/Gul/main/install.ps1 | iex       
 
 - 📦 **[Self-host guide](https://docs.gul.pianonic.ch/self-host)** — run the server image with `docker compose` behind your wildcard reverse proxy.
 - 🛠️ **[CLI usage](https://docs.gul.pianonic.ch/cli)** — install `gul`, then `gul remote`, `gul login`, `gul <port>`.
-- 🧑‍💻 **[Developer setup](https://docs.gul.pianonic.ch/dev-setup)** — `dotnet run` the server and client locally.
+- 🧑‍💻 **[Developer setup](https://docs.gul.pianonic.ch/dev-setup)** — `dotnet run` the server and client locally. Includes [testing `gul login` locally](https://docs.gul.pianonic.ch/dev-setup#test-login-locally) against a Dockerized mock OIDC provider.
 
 Full documentation: **[docs.gul.pianonic.ch](https://docs.gul.pianonic.ch)**
 

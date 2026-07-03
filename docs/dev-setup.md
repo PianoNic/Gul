@@ -68,7 +68,7 @@ Start something to expose - say a static server on port 3000 - then, in another 
 
 ```powershell
 # one-time: store the local server URL and log in
-dotnet run --project src/Gul.Client -- setup      # enter http://localhost:5080
+dotnet run --project src/Gul.Client -- remote http://localhost:5080
 dotnet run --project src/Gul.Client -- login
 
 # open the tunnel
@@ -86,6 +86,51 @@ Open that URL in a browser. Because `*.localhost` resolves to `127.0.0.1`, the r
 ::: tip
 The CLI writes its config to `~/.gul/config.json` just like a release build. Delete that file to reset the stored server URL and tokens between experiments.
 :::
+
+## Test login locally
+
+Don't have a real OIDC provider handy? Spin up a throwaway one in Docker. The [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) speaks full OIDC (discovery, Authorization Code + PKCE, JWKS) and issues real signed tokens, so you can exercise `gul login` end-to-end without registering a client anywhere.
+
+The mock and the server both point at the **same** authority, `http://localhost:8090/default`, so the token's `iss` claim matches what the server validates — no config drift, no code changes. `appsettings.Development.json` already carries these values, so the server needs no extra setup.
+
+::: tip
+The issuer is derived from the request host, so `localhost` and `127.0.0.1` are *different* issuers to the mock. Keep everything on `localhost:8090` and the `iss` in the JWT will line up with what the server expects.
+:::
+
+Bring up the mock OIDC provider on `:8090`:
+
+```powershell
+docker compose -f compose.dev.yml up -d
+```
+
+Run the server (its Development config already points at the mock):
+
+```powershell
+dotnet run --project src/Gul.Server
+```
+
+Then, in another terminal, point the CLI at the local server and sign in:
+
+```powershell
+gul remote http://localhost:5080
+gul login
+```
+
+`gul login` opens a browser to the mock's login form — type **any** username (it becomes your `sub`) and submit. The mock redirects back to the CLI's loopback listener, which exchanges the code for a token and stores it. Now open a tunnel:
+
+```powershell
+gul 3000
+```
+
+::: warning
+Tunnel subdomains under `localhost` (e.g. `happy-otter.localhost`) don't resolve without a wildcard proxy in front, so this flow verifies **login and hub authentication**, not live forwarded traffic. To watch real traffic flow, use a `BaseDomain` with a wildcard DNS entry and a reverse proxy as in [self-host](./self-host.md).
+:::
+
+Tear the mock down when you're done:
+
+```powershell
+docker compose -f compose.dev.yml down
+```
 
 ## 4. Build & publish
 
