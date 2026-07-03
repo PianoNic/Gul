@@ -87,7 +87,7 @@ gul 3000 --name myapp
 
 Then whitelist `https://myapp.gul.example.com/*` in the provider's client settings.
 
-Keep translation at the default `loopback` for cloud providers, so the provider's own login page and its background requests are reached directly and never rewritten (routing them through the tunnel breaks their CORS and cookies). One caveat: some providers (Microsoft Entra for example) only accept `https` redirect URIs, or exactly `http://localhost`, so a local `http://myapp.localhost:5080` callback will not register. Test those against your real `https` gul deployment, or point the app at an `http://localhost:<port>` callback for local development.
+The reliable path for cloud providers is the default `loopback`, so the provider's own login page and its background requests are reached directly and never rewritten. Routing a provider through the tunnel with `all` or `aggressive` breaks the login: the discovery `issuer` gets rewritten to a gul route while the signed token keeps its real issuer, and the client rejects the mismatch. Keep the provider direct. One caveat: some providers (Microsoft Entra for example) only accept `https` redirect URIs, or exactly `http://localhost`, so a local `http://myapp.localhost:5080` callback will not register. Test those against your real `https` gul deployment, or point the app at an `http://localhost:<port>` callback for local development.
 
 ## Configuration
 
@@ -98,7 +98,7 @@ Translation is on by default for your local services, the loopback hosts (`local
 | `Translate` | `loopback`, `allowlist`, `all`, `aggressive`, `off` | `loopback` | `loopback` (the default) rewrites only loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). `allowlist` also rewrites the hosts listed in `TranslateHosts`. `all` rewrites every absolute `http(s)` URL including external ones, which can break third-party services like Microsoft or Google, so use it deliberately. `aggressive` rewrites every host like `all` and additionally rewrites every response header rather than just `Location`, for the rare app that hides local URLs in unusual headers. `off` disables translation entirely. |
 | `TranslateHosts` | `string[]` | `[]` | The hosts to rewrite when `Translate` is `allowlist`. Ignored in the other modes. |
 
-Even `aggressive` mode cannot make a locked-down third-party identity provider such as Microsoft or Google log in through the tunnel, because their cookies, CSP, and anti-forgery tokens are bound to their real origin.
+Do not route an OIDC provider through the tunnel, not even with `aggressive` mode. Routing it rewrites the provider's discovery `issuer` to a gul route, while the signed `id_token` keeps its real issuer, so the client library rejects the token with a validation error and the login never completes. Keep the provider on the default `loopback` so it is reached directly, register your gul URL with it, and serve your own API and hub same-origin as the app so the access token attaches. See [OIDC providers](./oidc.md).
 
 Both live in the client config file (`~/.gul/config.json`). See the [CLI config reference](./cli.md#configuration-file).
 
