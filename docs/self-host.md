@@ -104,12 +104,12 @@ The CLI logs in with **Authorization Code + PKCE** on a **loopback redirect** (`
 | Setting | Value |
 | --- | --- |
 | Client type | Public (PKCE, no client secret) |
-| Allowed redirect URIs | `http://127.0.0.1/*` **and** `http://localhost/*` |
+| Allowed redirect URIs | `http://127.0.0.1:*/` |
 | Scopes | `openid profile email` |
 
-The CLI binds an ephemeral loopback port at login time, so the redirect port isn't fixed. Allow the whole `127.0.0.1`/`localhost` host with a wildcard path. The server never receives the code. It only validates the resulting access token on the hub.
+The CLI binds an ephemeral loopback port at login time, so the redirect port is not fixed. The `:*` wildcard matches whatever port it picks. The server never receives the code. It only validates the resulting access token on the hub.
 
-- **Pocket ID.** Toggle **Public Client** and add both loopback redirect URIs.
+- **Pocket ID.** Toggle **Public Client**, keep **PKCE** on, and set the callback URL to `http://127.0.0.1:*/`.
 - **Authentik.** Use the *Provider*'s issuer (`/application/o/<slug>/`) as `Oidc__Authority`.
 - **Auth0.** Authority is `https://<tenant>.auth0.com/` (trailing slash), and app type **Native**.
 - **Keycloak.** Authority is `https://<host>/realms/<realm>`. Set the client to public and add the redirect URIs.
@@ -173,7 +173,7 @@ There's no database and no migrations. The container comes up, clients reconnect
 | Apex/404 page instead of your app | The proxy isn't forwarding the wildcard host. Ensure `*.gul.example.com` **and** `gul.example.com` both proxy to `gul:8080` **and** pass the original `Host` header. |
 | `No active tunnel for <sub>` (502) | No CLI is registered for that subdomain right now, so run `gul <port>` again. The tunnel closes the moment the CLI exits. |
 | Visitor request hangs, then `504` | The forwarded request timed out (~100s). The local app is slow or the port the CLI targets isn't answering. |
-| `redirect_uri` mismatch at login | The OIDC client must allow `http://127.0.0.1/*` **and** `http://localhost/*`, and be a public (PKCE, no secret) client. |
+| `redirect_uri` mismatch at login | The OIDC client must allow `http://127.0.0.1:*/` (wildcard the ephemeral port) and be a public (PKCE, no secret) client. |
 | `401` on the hub / "can't open a tunnel" | `Oidc__Authority` must match the token's `issuer` byte-for-byte, and the discovery URL must be reachable **from inside the container**. |
 | TLS error on a brand-new subdomain | The certificate must cover `*.gul.example.com`. Per-subdomain certs won't keep up, so use a wildcard cert (Caddy on-demand TLS or a DNS-01 challenge). |
 | Login opens no browser on a headless host | The CLI prints the authorize URL as a fallback. The redirect returns to a loopback listener on the *same* machine, so complete login in a browser there (or tunnel the loopback port to your workstation). |
