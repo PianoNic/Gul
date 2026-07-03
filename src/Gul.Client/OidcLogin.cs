@@ -54,25 +54,38 @@ public static class OidcLogin
                 "code_challenge=" + Uri.EscapeDataString(challenge),
                 "code_challenge_method=S256");
 
-            Console.WriteLine("If your browser didn't open, visit:");
+            var opened = OpenBrowser(authorizeUrl);
+            Console.WriteLine(opened
+                ? "Opened your browser to sign in. If it didn't open, use this URL:"
+                : "Couldn't open a browser automatically. Open this URL to sign in:");
             Console.WriteLine("  " + authorizeUrl);
-            OpenBrowser(authorizeUrl);
+            Console.WriteLine("(press 'c' to copy the URL to your clipboard)");
 
-            var code = await WaitForCodeAsync(listener, state, redirectUri, ct);
+            using var keyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var keyTask = OfferClipboardCopyAsync(authorizeUrl, keyCts.Token);
 
-            using var resp = await Http.PostAsync(tokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
+            try
             {
-                ["grant_type"] = "authorization_code",
-                ["code"] = code,
-                ["redirect_uri"] = redirectUri,
-                ["client_id"] = clientId,
-                ["code_verifier"] = verifier,
-            }), ct);
-            resp.EnsureSuccessStatusCode();
+                var code = await WaitForCodeAsync(listener, state, redirectUri, ct);
 
-            var token = await resp.Content.ReadFromJsonAsync<TokenResponse>(ct)
-                ?? throw new InvalidOperationException("The token endpoint returned an empty response.");
-            return ToTokens(token);
+                using var resp = await Http.PostAsync(tokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "authorization_code",
+                    ["code"] = code,
+                    ["redirect_uri"] = redirectUri,
+                    ["client_id"] = clientId,
+                    ["code_verifier"] = verifier,
+                }), ct);
+                resp.EnsureSuccessStatusCode();
+
+                var token = await resp.Content.ReadFromJsonAsync<TokenResponse>(ct)
+                    ?? throw new InvalidOperationException("The token endpoint returned an empty response.");
+                return ToTokens(token);
+            }
+            finally
+            {
+                keyCts.Cancel();
+            }
         }
         finally
         {
@@ -186,7 +199,7 @@ public static class OidcLogin
         ctx.Response.Close();
     }
 
-    private static void OpenBrowser(string url)
+    private static bool OpenBrowser(string url)
     {
         try
         {
@@ -196,10 +209,63 @@ public static class OidcLogin
                 Process.Start("open", url);
             else
                 Process.Start("xdg-open", url);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static async Task OfferClipboardCopyAsync(string url, CancellationToken ct)
+    {
+        if (Console.IsInputRedirected)
+            return;
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.C)
+                    Console.WriteLine(CopyToClipboard(url)
+                        ? "Copied the URL to your clipboard."
+                        : "Couldn't access the clipboard; copy the URL above manually.");
+                await Task.Delay(150, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch
         {
         }
+    }
+
+    private static bool CopyToClipboard(string text)
+    {
+        (string File, string Args)[] candidates =
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? [("clip", "")]
+            : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? [("pbcopy", "")]
+            : [("wl-copy", ""), ("xclip", "-selection clipboard"), ("xsel", "--clipboard --input")];
+
+        foreach (var (file, args) in candidates)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(file, args) { RedirectStandardInput = true, UseShellExecute = false };
+                using var p = Process.Start(psi);
+                if (p is null)
+                    continue;
+                p.StandardInput.Write(text);
+                p.StandardInput.Close();
+                p.WaitForExit(2000);
+                if (p.HasExited && p.ExitCode == 0)
+                    return true;
+            }
+            catch
+            {
+            }
+        }
+        return false;
     }
 
     private sealed record ServerConfigResponse(string authority, string clientId, string scopes, string baseDomain);

@@ -75,9 +75,9 @@ static bool TryNormalizeServerUrl(string? input, out string normalized, out stri
 static async Task<int> LoginAsync()
 {
     var config = Config.Load();
-    if (string.IsNullOrWhiteSpace(config.ServerUrl))
+    if (string.IsNullOrWhiteSpace(config.ServerUrl) || !TryNormalizeServerUrl(config.ServerUrl, out _, out _))
     {
-        Console.Error.WriteLine("No server configured. Run 'gul remote <url>' first.");
+        Console.Error.WriteLine("No valid server configured. Run 'gul remote <url>' first (e.g. gul remote https://gul.example.com).");
         return 1;
     }
 
@@ -136,9 +136,9 @@ static async Task<int> TunnelAsync(string[] args)
     }
 
     var config = Config.Load();
-    if (string.IsNullOrWhiteSpace(config.ServerUrl))
+    if (string.IsNullOrWhiteSpace(config.ServerUrl) || !TryNormalizeServerUrl(config.ServerUrl, out _, out _))
     {
-        Console.Error.WriteLine("No server configured. Run 'gul remote <url>' first.");
+        Console.Error.WriteLine("No valid server configured. Run 'gul remote <url>' first (e.g. gul remote https://gul.example.com).");
         return 1;
     }
 
