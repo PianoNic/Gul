@@ -138,11 +138,11 @@ jobs:
             -p:PublishSingleFile=true -p:Version="$VERSION" -o out
           case "${{ matrix.rid }}" in
             win-*)
-              mv out/Gul.Client.exe "gul-${{ matrix.rid }}.exe"
+              mv out/gul.exe "gul-${{ matrix.rid }}.exe"
               gh release upload "$TAG" "gul-${{ matrix.rid }}.exe" --clobber
               ;;
             *)
-              mv out/Gul.Client "gul-${{ matrix.rid }}"
+              mv out/gul "gul-${{ matrix.rid }}"
               gh release upload "$TAG" "gul-${{ matrix.rid }}" --clobber
               ;;
           esac
