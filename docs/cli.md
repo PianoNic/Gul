@@ -4,23 +4,33 @@
 
 ## Install
 
-Grab the binary for your OS from the [latest release](https://github.com/PianoNic/gul/releases/latest):
+**One-liner** - downloads the right binary for your OS and architecture and puts `gul` on your `PATH`:
 
-| OS | Asset |
+```sh
+curl -fsSL https://raw.githubusercontent.com/PianoNic/Gul/main/install.sh | sh
+```
+
+```powershell
+irm https://raw.githubusercontent.com/PianoNic/Gul/main/install.ps1 | iex
+```
+
+**Portable** - prefer no install? Grab the standalone single-file binary for your platform from the [latest release](https://github.com/PianoNic/Gul/releases/latest), drop it anywhere on your `PATH`, and run it:
+
+| Platform | Asset |
 | --- | --- |
 | Windows x64 | `gul-win-x64.exe` |
+| Windows ARM64 | `gul-win-arm64.exe` |
 | Linux x64 | `gul-linux-x64` |
+| Linux ARM64 | `gul-linux-arm64` |
 | macOS Intel | `gul-osx-x64` |
 | macOS Apple Silicon | `gul-osx-arm64` |
 
-**macOS / Linux** - mark it executable and put it on your `PATH`:
+On macOS / Linux, mark it executable and put it on your `PATH`:
 
 ```bash
 chmod +x gul-linux-x64
-sudo mv gul-linux-x64 /usr/local/bin/gul
+mv gul-linux-x64 ~/.local/bin/gul
 ```
-
-**Windows** - rename `gul-win-x64.exe` to `gul.exe` and drop it in a folder that's on your `PATH` (or call it by full path).
 
 Verify it runs:
 
@@ -33,11 +43,11 @@ gul --help
 Two one-time steps: point the CLI at your server, then log in.
 
 ```bash
-gul setup      # prompts for the server URL, e.g. https://gul.example.com
-gul login      # opens your browser for the OIDC login
+gul remote https://gul.example.com   # store the server URL
+gul login                            # opens your browser for the OIDC login
 ```
 
-- **`gul setup`** asks for the Gul server URL and stores it. This is the apex URL your operator gave you (`https://gul.example.com`), *not* a tunnel subdomain.
+- **`gul remote <url>`** sets the Gul server URL and stores it (run `gul remote` with no argument to print the current one). This is the apex URL your operator gave you (`https://gul.example.com`), *not* a tunnel subdomain. Invalid URLs are rejected.
 - **`gul login`** fetches the server's OIDC settings from `GET /config`, runs **Authorization Code + PKCE** against your identity provider, and saves the resulting tokens. A browser tab opens; approve, and it redirects to a local loopback listener that shows a "You can close this tab" page.
 
 ::: tip
@@ -70,7 +80,7 @@ If the name is already taken or invalid (names must be lowercase `a-z`, `0-9`, `
 
 | Command | What it does |
 | --- | --- |
-| `gul setup` | Prompt for the server URL and store it in the config file. |
+| `gul remote [<url>]` | Set the server URL, or print it when run with no argument. |
 | `gul login` | Run the browser OIDC login and save the tokens. |
 | `gul logout` | Clear the saved tokens (keeps the server URL). |
 | `gul <port> [--name <sub>]` | Ensure a valid token, open a tunnel to `localhost:<port>`, and forward until Ctrl+C. |
@@ -95,9 +105,9 @@ Everything the CLI remembers lives in a single JSON file:
 }
 ```
 
-- **`ServerUrl`** is set by `gul setup`.
+- **`ServerUrl`** is set by `gul remote`.
 - The token fields are written by `gul login` and refreshed automatically before a tunnel opens. `gul logout` clears them.
-- Delete the file to start completely fresh, or re-run `gul setup` to repoint at a different server.
+- Delete the file to start completely fresh, or re-run `gul remote <url>` to repoint at a different server.
 
 ::: warning
 The file holds live access and refresh tokens in plain text. It's created under your home directory with your user's permissions - treat it like any other credential file and don't commit it.

@@ -156,7 +156,7 @@ All served on port `8080`, on the apex host (`gul.example.com`) - subdomains are
 docker compose pull gul && docker compose up -d gul
 ```
 
-There's no database and no migrations - the container comes up, clients reconnect, and each re-registers its subdomain. Pin a version by replacing `:latest` with a [published tag](https://github.com/PianoNic/gul/pkgs/container/gul).
+There's no database and no migrations - the container comes up, clients reconnect, and each re-registers its subdomain. Pin a version by replacing `:latest` with a [published tag](https://github.com/PianoNic/Gul/pkgs/container/gul).
 
 **Scale note.** Gul's registry is in-memory and per-process, so run **one** replica. A dropped tunnel just means the CLI reconnects; there is no shared state to coordinate.
 

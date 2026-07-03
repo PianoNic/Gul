@@ -17,7 +17,7 @@ hero:
       link: /cli
     - theme: alt
       text: GitHub
-      link: https://github.com/PianoNic/gul
+      link: https://github.com/PianoNic/Gul
 
 features:
   - title: One command

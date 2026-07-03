@@ -57,6 +57,19 @@ sequenceDiagram
 - **One small binary.** A self-contained single-file CLI per OS. No agent, no daemon, no database.
 - **Behind your own proxy.** Gul rides on an existing wildcard reverse proxy that already terminates TLS for `*.gul.example.com`.
 
+## Install
+
+One line — downloads the right binary for your OS/arch and puts `gul` on your `PATH`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/PianoNic/Gul/main/install.sh | sh   # macOS / Linux
+```
+```powershell
+irm https://raw.githubusercontent.com/PianoNic/Gul/main/install.ps1 | iex        # Windows
+```
+
+**Portable** — grab the standalone single-file binary for your platform (`gul-win-x64.exe`, `gul-linux-arm64`, `gul-osx-arm64`, …) from the [latest release](https://github.com/PianoNic/Gul/releases/latest), drop it on your `PATH`, and run `gul`.
+
 ## Get started
 
 - 📦 **[Self-host guide](https://docs.gul.pianonic.ch/self-host)** — run the server image with `docker compose` behind your wildcard reverse proxy.
