@@ -13,12 +13,14 @@ export default defineConfig({
     logo: '/logo.svg',
     nav: [
       { text: 'Intro', link: '/intro' },
+      { text: 'Translator', link: '/translator' },
       { text: 'Self-host', link: '/self-host' },
       { text: 'CLI', link: '/cli' },
       { text: 'Development', link: '/dev-setup' },
     ],
     sidebar: [
       { text: 'What is Gul?', link: '/intro' },
+      { text: 'Auto-router translator', link: '/translator' },
       {
         text: 'Setup',
         collapsed: false,

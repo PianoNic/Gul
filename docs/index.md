@@ -21,11 +21,13 @@ hero:
 
 features:
   - title: One command
-    details: Run `gul 3000` and your local port is live at https://happy-otter.gul.example.com - TLS included.
+    details: Run `gul 3000` and your local port is live at https://happy-otter.gul.example.com, TLS included.
+  - title: Your whole stack on one URL
+    details: Gul rewrites cross-service links in your app's responses into routes that forward back to the right local port, so a multi-service setup works through one tunnel.
   - title: Random or named subdomains
     details: Get a friendly name like happy-otter by default, or claim your own with `--name myapp`.
   - title: Secured control plane
-    details: Only you can open tunnels - a browser OIDC login guards the control connection. Visitors stay anonymous.
+    details: Only you can open tunnels. A browser OIDC login guards the control connection, and visitors stay anonymous.
   - title: One small binary
     details: A single self-contained .NET CLI over a SignalR connection. No agent, no daemon, no database.
 ---

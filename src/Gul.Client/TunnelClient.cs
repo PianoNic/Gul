@@ -16,17 +16,15 @@ public sealed class TunnelClient
     private readonly int _port;
     private readonly string? _requestedName;
 
-    private readonly HttpClient _local;
+    private readonly HttpClient _http;
+    private Translator? _translator;
 
     public TunnelClient(Config config, int port, string? requestedName)
     {
         _config = config;
         _port = port;
         _requestedName = requestedName;
-        _local = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
-        {
-            BaseAddress = new Uri($"http://localhost:{port}"),
-        };
+        _http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
     }
 
     public async Task RunAsync(CancellationToken ct)
@@ -48,6 +46,7 @@ public sealed class TunnelClient
             try
             {
                 var url = await connection.InvokeAsync<string>("Register", _requestedName, CancellationToken.None);
+                _translator = new Translator(url, _port, _config.Translate, _config.TranslateHosts);
                 Console.WriteLine($"{Ui.Green("Reconnected.")}  {Ui.Url(url)}  {Ui.Dim("->")}  {Ui.Dim($"http://localhost:{_port}")}");
             }
             catch (Exception ex)
@@ -60,6 +59,7 @@ public sealed class TunnelClient
         try
         {
             var publicUrl = await connection.InvokeAsync<string>("Register", _requestedName, ct);
+            _translator = new Translator(publicUrl, _port, _config.Translate, _config.TranslateHosts);
             Console.WriteLine();
             Console.WriteLine($"  {Ui.Badge}  {Ui.Green("Tunnel live")}");
             Console.WriteLine($"  {Ui.Url(publicUrl)}  {Ui.Dim("->")}  {Ui.Dim($"http://localhost:{_port}")}");
@@ -79,9 +79,14 @@ public sealed class TunnelClient
 
     private async Task<TunnelResponse> ForwardToLocalAsync(TunnelRequest req)
     {
+        var host = req.Headers.TryGetValue("Host", out var hostValues) && hostValues.Length > 0 ? hostValues[0] : null;
+        var target = _translator is null ? $"http://localhost:{_port}" : _translator.ResolveTarget(host);
+        if (target is null)
+            return TextResponse(502, $"gul: unknown route for {host}");
+
         try
         {
-            using var message = new HttpRequestMessage(new HttpMethod(req.Method), req.Path);
+            using var message = new HttpRequestMessage(new HttpMethod(req.Method), new Uri(new Uri(target), req.Path));
 
             var body = req.Body ?? [];
             HttpContent? content = body.Length > 0 ? new ByteArrayContent(body) : null;
@@ -99,23 +104,36 @@ public sealed class TunnelClient
 
             message.Content = content;
 
-            using var response = await _local.SendAsync(message);
+            using var response = await _http.SendAsync(message);
             var responseBody = await response.Content.ReadAsByteArrayAsync();
 
             var headers = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
             foreach (var h in response.Headers) headers[h.Key] = [.. h.Value];
             foreach (var h in response.Content.Headers) headers[h.Key] = [.. h.Value];
 
+            if (_translator is not null)
+            {
+                if (_translator.IsTextResponse(headers))
+                    responseBody = _translator.RewriteBody(responseBody);
+
+                if (headers.TryGetValue("Location", out var location) && location.Length > 0 && !string.IsNullOrEmpty(location[0]))
+                    headers["Location"] = [_translator.RewriteLocation(location[0])];
+            }
+
             return new TunnelResponse((int)response.StatusCode, headers, responseBody);
         }
         catch (Exception ex)
         {
-            var body = Encoding.UTF8.GetBytes($"gul: could not reach http://localhost:{_port} ({ex.Message})");
-            var headers = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Content-Type"] = ["text/plain; charset=utf-8"],
-            };
-            return new TunnelResponse(502, headers, body);
+            return TextResponse(502, $"gul: could not reach {target} ({ex.Message})");
         }
+    }
+
+    private static TunnelResponse TextResponse(int status, string message)
+    {
+        var headers = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Content-Type"] = ["text/plain; charset=utf-8"],
+        };
+        return new TunnelResponse(status, headers, Encoding.UTF8.GetBytes(message));
     }
 }

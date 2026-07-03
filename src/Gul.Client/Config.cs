@@ -8,6 +8,8 @@ public sealed class Config
     public string? AccessToken { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? ExpiresAtUtc { get; set; }
+    public string? Translate { get; set; }
+    public string[]? TranslateHosts { get; set; }
 
     private static string Dir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gul");

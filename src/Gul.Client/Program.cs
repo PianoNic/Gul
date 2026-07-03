@@ -119,6 +119,7 @@ static async Task<int> TunnelAsync(string[] args)
     }
 
     string? name = null;
+    string? translate = null;
     for (var i = 1; i < args.Length; i++)
     {
         switch (args[i])
@@ -130,6 +131,22 @@ static async Task<int> TunnelAsync(string[] args)
                     return 1;
                 }
                 name = args[++i];
+                break;
+            case "--translate" or "-t":
+                if (i + 1 >= args.Length)
+                {
+                    Ui.Err("--translate requires a value (all|loopback|allowlist|off).");
+                    return 1;
+                }
+                translate = args[++i].ToLowerInvariant();
+                if (translate is not ("all" or "loopback" or "allowlist" or "off"))
+                {
+                    Ui.Err("--translate must be one of all|loopback|allowlist|off.");
+                    return 1;
+                }
+                break;
+            case "--no-translate":
+                translate = "off";
                 break;
             default:
                 Console.Error.WriteLine($"Unknown option: {args[i]}");
@@ -153,6 +170,9 @@ static async Task<int> TunnelAsync(string[] args)
         e.Cancel = true;
         cts.Cancel();
     };
+
+    if (translate is not null)
+        config.Translate = translate;
 
     var client = new TunnelClient(config, port, name);
     try
@@ -229,6 +249,11 @@ static void PrintUsage()
           gul logout                 Clear stored credentials
           gul <port> [--name <sub>]  Open a tunnel to http://localhost:<port>
           gul --help                 Show this help
+
+        Options:
+          --name <sub>                          Request a specific subdomain
+          --translate <all|loopback|allowlist|off>  Rewrite local URLs in responses (default all)
+          --no-translate                        Disable URL rewriting (same as --translate off)
 
         Examples:
           gul remote https://gul.example.com

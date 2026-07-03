@@ -112,7 +112,9 @@ public sealed class TunnelForwardingMiddleware
         if (!host.EndsWith("." + _baseDomain, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        subdomain = host[..^(_baseDomain.Length + 1)];
+        var remainder = host[..^(_baseDomain.Length + 1)];
+        var lastDot = remainder.LastIndexOf('.');
+        subdomain = lastDot >= 0 ? remainder[(lastDot + 1)..] : remainder;
         if (subdomain.Length == 0 || subdomain.Equals("www", StringComparison.OrdinalIgnoreCase))
         {
             subdomain = "";

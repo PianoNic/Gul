@@ -1,14 +1,14 @@
 # Gul Developer Setup
 
-This is what a fresh checkout needs to run both halves of Gul locally. There's no database, no migrations, and no frontend build - two .NET projects and a `dotnet run`.
+This is what a fresh checkout needs to run both halves of Gul locally. There's no database, no migrations, and no frontend build, just two .NET projects and a `dotnet run`.
 
 ## Prerequisites
 
 - **.NET 10 SDK** (both projects target `net10.0`)
-- **An OIDC provider** for the login flow (any public/PKCE client - Pocket ID, Authentik, Keycloak, Auth0…). You only need this to exercise `gul login`.
-- A local app to expose (anything on a port - a dev server, `python -m http.server 3000`, etc.).
+- **An OIDC provider** for the login flow (any public/PKCE client such as Pocket ID, Authentik, Keycloak, or Auth0…). You only need this to exercise `gul login`.
+- A local app to expose (anything on a port, for example a dev server, `python -m http.server 3000`, etc.).
 
-That's it. No Docker is required for local development; the container image only matters when you [self-host](./self-host.md).
+That's it. No Docker is required for local development. The container image only matters when you [self-host](./self-host.md).
 
 ## The two projects
 
@@ -24,11 +24,11 @@ Gul.slnx
 | **Gul.Server** | `Microsoft.NET.Sdk.Web` | Hosts the SignalR hub at `/tunnel`, keeps the in-memory subdomain registry, and forwards public requests down the owning connection. |
 | **Gul.Client** | `Microsoft.NET.Sdk` (Exe) | The CLI: OIDC login, opens the hub connection, replays forwarded requests against `localhost`. |
 
-The wire contract (`TunnelRequest` / `TunnelResponse`) and the hub method names (`Register`, `ForwardRequest`) are duplicated in both projects with a `// keep in sync with the other side` comment - SignalR serializes them as JSON, so the shapes must match exactly.
+The wire contract (`TunnelRequest` / `TunnelResponse`) and the hub method names (`Register`, `ForwardRequest`) are duplicated in both projects with a `// keep in sync with the other side` comment. SignalR serializes them as JSON, so the shapes must match exactly.
 
 ## 1. Configure the server
 
-In development, config lives in **`src/Gul.Server/appsettings.Development.json`** (or dotnet user-secrets if you prefer to keep it out of the tree). Point `BaseDomain` at `localhost` so you can test subdomains without real DNS - browsers resolve `*.localhost` to loopback automatically.
+In development, config lives in **`src/Gul.Server/appsettings.Development.json`** (or dotnet user-secrets if you prefer to keep it out of the tree). Point `BaseDomain` at `localhost` so you can test subdomains without real DNS, because browsers resolve `*.localhost` to loopback automatically.
 
 ```json
 {
@@ -45,7 +45,7 @@ In development, config lives in **`src/Gul.Server/appsettings.Development.json`*
 ```
 
 ::: info
-`appsettings.json` carries only ASP.NET framework defaults (logging, allowed hosts). Application config - `Gul:BaseDomain` and the `Oidc:*` keys - goes in `appsettings.Development.json` or user-secrets.
+`appsettings.json` carries only ASP.NET framework defaults (logging, allowed hosts). Application config, namely `Gul:BaseDomain` and the `Oidc:*` keys, goes in `appsettings.Development.json` or user-secrets.
 :::
 
 ## 2. Run the server
@@ -54,7 +54,7 @@ In development, config lives in **`src/Gul.Server/appsettings.Development.json`*
 dotnet run --project src/Gul.Server
 ```
 
-It binds to the URL in `Properties/launchSettings.json` (e.g. `http://localhost:5080` - watch the startup log for the exact one). In Development it also mounts:
+It binds to the URL in `Properties/launchSettings.json` (e.g. `http://localhost:5080`, and you can watch the startup log for the exact one). In Development it also mounts:
 
 - **OpenAPI document** at `/openapi/v1.json` (anonymous)
 - **Scalar API reference** at `/scalar/v1` (anonymous)
@@ -64,7 +64,7 @@ The forwarding middleware runs **first**, before auth, so public tunnel traffic 
 
 ## 3. Run the client
 
-Start something to expose - say a static server on port 3000 - then, in another terminal, point the CLI at your local server and open a tunnel:
+Start something to expose, say a static server on port 3000, then, in another terminal, point the CLI at your local server and open a tunnel:
 
 ```powershell
 # one-time: store the local server URL and log in
@@ -81,7 +81,7 @@ Everything after `--` is passed to the CLI as its args. The tunnel prints someth
 Tunnel live:  http://happy-otter.localhost:5080  ->  http://localhost:3000
 ```
 
-Open that URL in a browser. Because `*.localhost` resolves to `127.0.0.1`, the request hits your local Gul server, gets forwarded down the SignalR connection to the CLI, and is replayed against `localhost:3000` - the whole round trip, no proxy or DNS needed.
+Open that URL in a browser. Because `*.localhost` resolves to `127.0.0.1`, the request hits your local Gul server, gets forwarded down the SignalR connection to the CLI, and is replayed against `localhost:3000`, the whole round trip, with no proxy or DNS needed.
 
 ::: tip
 The CLI writes its config to `~/.gul/config.json` just like a release build. Delete that file to reset the stored server URL and tokens between experiments.
@@ -91,7 +91,7 @@ The CLI writes its config to `~/.gul/config.json` just like a release build. Del
 
 Don't have a real OIDC provider handy? Spin up a throwaway one in Docker. The [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) speaks full OIDC (discovery, Authorization Code + PKCE, JWKS) and issues real signed tokens, so you can exercise `gul login` end-to-end without registering a client anywhere.
 
-The mock and the server both point at the **same** authority, `http://localhost:8090/default`, so the token's `iss` claim matches what the server validates — no config drift, no code changes. `appsettings.Development.json` already carries these values, so the server needs no extra setup.
+The mock and the server both point at the **same** authority, `http://localhost:8090/default`, so the token's `iss` claim matches what the server validates, with no config drift and no code changes. `appsettings.Development.json` already carries these values, so the server needs no extra setup.
 
 ::: tip
 The issuer is derived from the request host, so `localhost` and `127.0.0.1` are *different* issuers to the mock. Keep everything on `localhost:8090` and the `iss` in the JWT will line up with what the server expects.
@@ -116,7 +116,7 @@ gul remote http://localhost:5080
 gul login
 ```
 
-`gul login` opens a browser to the mock's login form — type **any** username (it becomes your `sub`) and submit. The mock redirects back to the CLI's loopback listener, which exchanges the code for a token and stores it. Now open a tunnel:
+`gul login` opens a browser to the mock's login form. Type **any** username (it becomes your `sub`) and submit. The mock redirects back to the CLI's loopback listener, which exchanges the code for a token and stores it. Now open a tunnel:
 
 ```powershell
 gul 3000
@@ -146,10 +146,10 @@ Produce a self-contained single-file CLI the way the release pipeline does (pick
 dotnet publish src/Gul.Client -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true
 ```
 
-The client enables `InvariantGlobalization` and single-file publish but **not** AOT - SignalR and `System.Text.Json` rely on reflection at runtime, so a trimmed/AOT build would break serialization.
+The client enables `InvariantGlobalization` and single-file publish but **not** AOT, because SignalR and `System.Text.Json` rely on reflection at runtime, so a trimmed/AOT build would break serialization.
 
 ## Notes
 
-- **No database, no migrations.** The server's only state is the `TunnelRegistry` - a `ConcurrentDictionary` mapping subdomain ↔ connection id. Restart the server and connected clients simply reconnect and re-register.
-- **Version stamping.** The repo-root `Directory.Build.props` reads `<version>` from `application.properties` and stamps it into both assemblies at build time; the csproj files don't hardcode a version.
+- **No database, no migrations.** The server's only state is the `TunnelRegistry`, a `ConcurrentDictionary` mapping subdomain ↔ connection id. Restart the server and connected clients simply reconnect and re-register.
+- **Version stamping.** The repo-root `Directory.Build.props` reads `<version>` from `application.properties` and stamps it into both assemblies at build time, and the csproj files don't hardcode a version.
 - **API exploration.** Use the Scalar UI at `/scalar/v1` or any spec-aware tool against `/openapi/v1.json`. Only the `/tunnel` hub requires a bearer token.
