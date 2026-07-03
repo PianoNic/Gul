@@ -122,6 +122,19 @@ public sealed partial class Translator
 
     public bool TranslationEnabled => _mode != "off";
 
+    // The port to advertise in X-Forwarded-Port; the scheme's default when the public URL omits one.
+    public string PublicForwardedPort => _publicPort ?? (_publicScheme == "https" ? "443" : "80");
+
+    // True when the host resolves to a translated route (a secondary service), not the primary app.
+    public bool IsTranslatedRoute(string? hostHeader)
+    {
+        if (string.IsNullOrEmpty(hostHeader)) return false;
+        var host = hostHeader;
+        var colon = host.IndexOf(':');
+        if (colon >= 0) host = host[..colon];
+        return TryRouteId(host, out var id) && !string.IsNullOrEmpty(id);
+    }
+
     public bool IsTextResponse(IReadOnlyDictionary<string, string[]> headers)
     {
         if (!headers.TryGetValue("Content-Type", out var values) || values.Length == 0) return false;

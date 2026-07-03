@@ -10,12 +10,12 @@ Register `https://myapp.gul.example.com/*` as an allowed redirect URI in the pro
 
 ## Self-hosted on localhost
 
-A provider on `localhost` needs nothing. Gul reaches it as a routed service, rewrites `redirect_uri` for you, and — because translation is on — forwards `X-Forwarded-Host` and `X-Forwarded-Proto` carrying the public gul origin, exactly like a reverse proxy.
+A provider on `localhost` needs nothing. Gul routes it, rewrites `redirect_uri` for you, and presents it with the **public gul origin** it is reached through — the `Host` header plus `X-Forwarded-Proto`/`X-Forwarded-Port` — on every translated route. (Your primary app keeps its own `localhost` Host instead, because dev servers like Vite reject a foreign one.)
 
-A provider that honors forwarded headers (mock-oauth2-server, Keycloak, Duende IdentityServer, and most modern IdPs) then mints both its discovery `issuer` and the signed token `iss` from the gul host. Discovery and token validation line up, and login just works.
+Because the provider sees the public origin, it mints both its discovery `issuer` and the signed token `iss` as the gul URL. The discovery document then needs no rewrite, and the signed token — which gul can never rewrite — already carries the value the browser expects, so login completes. This works for `Host`-based providers (mock-oauth2-server) and `X-Forwarded`-aware ones (Keycloak, Duende IdentityServer) alike.
 
-## Providers that ignore forwarded headers
+## Resource servers (APIs) that validate the token
 
-If a provider derives its issuer from a fixed configured value and ignores `X-Forwarded-*`, its discovery `issuer` and signed-token `iss` stay on the real local origin. Gul can rewrite the issuer text in the discovery document but never inside a signed token, so the client sees the mismatch and login fails. Point the provider's configured issuer (public base URL) at your gul URL, or reach the provider directly.
+Your API validates the same token, so it must expect the **same public issuer** the browser does. Point its accepted issuer at your gul URL — a stable `--name` keeps it fixed — and, if the API also fetches provider metadata, let it read JWKS from the provider's local address while validating `iss` against the gul URL. Many stacks expose both (for example an `Authority` for the issuer alongside an internal metadata address). An API pinned to the bare `localhost` issuer rejects the token with `401`.
 
 See also: [Auto-router translator](./translator.md) · [CLI client](./cli.md)

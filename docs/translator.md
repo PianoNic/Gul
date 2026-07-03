@@ -72,7 +72,7 @@ Cross-service `fetch` and `XHR` calls just succeed, with no CORS configuration c
 
 ## OIDC providers
 
-Add your gul URL as a callback URL in the provider, and keep translation on the default `loopback`. A provider on `localhost` needs nothing: gul routes it, rewrites `redirect_uri`, and forwards `X-Forwarded-Host`/`X-Forwarded-Proto` so a forwarded-header-aware provider mints its discovery `issuer` and the signed token `iss` from the gul origin. A provider that ignores those headers keeps its local `issuer` inside the signed token, which gul can't rewrite, so point its configured issuer at your gul URL or reach it directly. Full detail on the [OIDC providers](./oidc.md) page.
+Add your gul URL as a callback URL in the provider, and keep translation on the default `loopback`. A provider on `localhost` needs nothing: gul routes it, rewrites `redirect_uri`, and presents it with the public gul origin (via the `Host` header and `X-Forwarded-*`) so its discovery `issuer` and the signed token `iss` are both the gul URL. Your API must validate against that same public issuer. Full detail on the [OIDC providers](./oidc.md) page.
 
 ## Configuration
 
@@ -83,7 +83,7 @@ Translation is on by default for your local services, the loopback hosts (`local
 | `Translate` | `loopback`, `allowlist`, `all`, `aggressive`, `off` | `loopback` | `loopback` (the default) rewrites only loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). `allowlist` also rewrites the hosts listed in `TranslateHosts`. `all` rewrites every absolute `http(s)` URL including external ones, which can break third-party services like Microsoft or Google, so use it deliberately. `aggressive` rewrites every host like `all` and additionally rewrites every response header rather than just `Location`, for the rare app that hides local URLs in unusual headers. `off` disables translation entirely. |
 | `TranslateHosts` | `string[]` | `[]` | The hosts to rewrite when `Translate` is `allowlist`. Ignored in the other modes. |
 
-For an OIDC provider, keep the default `loopback` and add your gul URL as a callback URL. With translation on, gul forwards `X-Forwarded-Host`/`X-Forwarded-Proto`, so a provider that honors them advertises the gul origin in both its discovery `issuer` and the signed token `iss`. See [OIDC providers](./oidc.md).
+For an OIDC provider, keep the default `loopback` and add your gul URL as a callback URL. On a translated route gul presents the local service with the public gul `Host` (plus `X-Forwarded-*`), so the provider advertises the gul origin in both its discovery `issuer` and the signed token `iss`. See [OIDC providers](./oidc.md).
 
 Both live in the client config file (`~/.gul/config.json`). See the [CLI config reference](./cli.md#configuration-file).
 

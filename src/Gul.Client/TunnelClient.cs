@@ -134,11 +134,12 @@ public sealed class TunnelClient
 
             HttpContent? content = body.Length > 0 ? new ByteArrayContent(body) : null;
 
-            // With translation on, gul acts as a reverse proxy: tell the local app the public
-            // origin it is being reached through so an OIDC provider mints its issuer and token
-            // `iss` from the gul host instead of localhost. We own these headers, so drop any
-            // inbound copy first.
-            var forward = _translator is { TranslationEnabled: true } && !string.IsNullOrEmpty(host);
+            // A translated route points at a secondary local service (an API, an OIDC provider).
+            // Present it with the public origin it's reached through, so absolute URLs it emits —
+            // an OIDC discovery `issuer` and the signed token `iss` — already match what the browser
+            // uses and need no rewrite. The primary app instead keeps its own localhost Host, since
+            // dev servers like Vite reject a foreign Host header.
+            var routeForward = _translator is not null && _translator.IsTranslatedRoute(host) && !string.IsNullOrEmpty(host);
 
             foreach (var (name, values) in req.Headers)
             {
@@ -148,8 +149,10 @@ public sealed class TunnelClient
 
                 if (HopByHop.Contains(name)) continue;
 
-                if (forward && (string.Equals(name, "X-Forwarded-Host", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(name, "X-Forwarded-Proto", StringComparison.OrdinalIgnoreCase)))
+                // We set forwarding headers ourselves (below) or strip them; never let the edge
+                // proxy's copies through to corrupt the local service's view of its own origin.
+                if (name.StartsWith("X-Forwarded-", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(name, "Forwarded", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var outValues = values;
@@ -163,10 +166,12 @@ public sealed class TunnelClient
                 content.Headers.TryAddWithoutValidation(name, outValues);
             }
 
-            if (forward)
+            if (routeForward)
             {
+                message.Headers.Host = host;
                 message.Headers.TryAddWithoutValidation("X-Forwarded-Host", host);
                 message.Headers.TryAddWithoutValidation("X-Forwarded-Proto", _translator!.PublicScheme);
+                message.Headers.TryAddWithoutValidation("X-Forwarded-Port", _translator!.PublicForwardedPort);
             }
 
             message.Content = content;
@@ -221,11 +226,6 @@ public sealed class TunnelClient
         var cws = new ClientWebSocket();
         foreach (var sub in open.SubProtocols)
             cws.Options.AddSubProtocol(sub);
-        if (_translator is { TranslationEnabled: true } && !string.IsNullOrEmpty(open.Host))
-        {
-            cws.Options.SetRequestHeader("X-Forwarded-Host", open.Host);
-            cws.Options.SetRequestHeader("X-Forwarded-Proto", _translator.PublicScheme);
-        }
 
         try
         {
