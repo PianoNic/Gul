@@ -18,18 +18,36 @@ public static class OidcLogin
     public static async Task<(string Authority, string ClientId, string Scopes)> GetServerConfigAsync(
         string serverUrl, CancellationToken ct = default)
     {
-        var cfg = await Http.GetFromJsonAsync<ServerConfigResponse>(
-            serverUrl.TrimEnd('/') + "/config", ct)
-            ?? throw new InvalidOperationException("The server returned no /config document.");
+        ServerConfigResponse? cfg;
+        try
+        {
+            cfg = await Http.GetFromJsonAsync<ServerConfigResponse>(serverUrl.TrimEnd('/') + "/config", ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException($"Couldn't reach the Gul server at {serverUrl}. Is it running?", ex);
+        }
+        if (cfg is null)
+            throw new InvalidOperationException("The server returned no /config document.");
         return (cfg.authority, cfg.clientId, cfg.scopes);
     }
 
     public static async Task<(string AuthorizationEndpoint, string TokenEndpoint)> GetDiscoveryAsync(
         string authority, CancellationToken ct = default)
     {
-        var doc = await Http.GetFromJsonAsync<OidcDiscoveryDocument>(
-            authority.TrimEnd('/') + "/.well-known/openid-configuration", ct)
-            ?? throw new InvalidOperationException("The authority returned no discovery document.");
+        OidcDiscoveryDocument? doc;
+        try
+        {
+            doc = await Http.GetFromJsonAsync<OidcDiscoveryDocument>(
+                authority.TrimEnd('/') + "/.well-known/openid-configuration", ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException(
+                $"Couldn't reach the OIDC provider at {authority}. Is it running? For local dev: docker compose -f compose.dev.yml up -d", ex);
+        }
+        if (doc is null)
+            throw new InvalidOperationException("The authority returned no discovery document.");
         return (doc.authorization_endpoint, doc.token_endpoint);
     }
 
