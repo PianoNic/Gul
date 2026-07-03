@@ -23,7 +23,8 @@ public sealed partial class Translator
     private readonly HashSet<string> _allow;
     private readonly string _primary;
     private readonly string _apex;
-    private readonly string _suffix;
+    private readonly string _mainsub;
+    private readonly string _baseDomain;
     private readonly string _publicScheme;
     private readonly string? _publicPort;
     private readonly string _apexOrigin;
@@ -40,7 +41,8 @@ public sealed partial class Translator
         var mainsub = parts[0];
         var baseDomain = string.Join('.', parts.Skip(1));
         _apex = mainsub + "." + baseDomain;
-        _suffix = "." + _apex;
+        _mainsub = mainsub;
+        _baseDomain = baseDomain;
 
         _primary = "http://localhost:" + primaryPort;
         _mode = string.IsNullOrWhiteSpace(mode) ? "loopback" : mode.Trim().ToLowerInvariant();
@@ -84,7 +86,24 @@ public sealed partial class Translator
         return changed ? string.Join("&", pairs) : urlEncoded;
     }
 
-    private bool IsOwnHost(string host) => host.Equals(_apex, StringComparison.OrdinalIgnoreCase) || host.EndsWith(_suffix, StringComparison.OrdinalIgnoreCase);
+    private bool IsOwnHost(string host) => TryRouteId(host, out _);
+
+    private bool TryRouteId(string host, out string? id)
+    {
+        id = null;
+        var dot = host.IndexOf('.');
+        if (dot < 0) return false;
+        var label = host[..dot];
+        if (!host[(dot + 1)..].Equals(_baseDomain, StringComparison.OrdinalIgnoreCase)) return false;
+        if (label.Equals(_mainsub, StringComparison.OrdinalIgnoreCase)) return true;
+        var prefix = _mainsub + "--";
+        if (label.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            id = label[prefix.Length..];
+            return true;
+        }
+        return false;
+    }
 
     public string? ResolveTarget(string? hostHeader)
     {
@@ -94,14 +113,9 @@ public sealed partial class Translator
         var colon = host.IndexOf(':');
         if (colon >= 0) host = host[..colon];
 
-        if (host.Equals(_apex, StringComparison.OrdinalIgnoreCase)) return _primary;
-        if (host.EndsWith(_suffix, StringComparison.OrdinalIgnoreCase))
-        {
-            var id = host[..^_suffix.Length];
-            if (id.Length == 0) return _primary;
-            return _idToTarget.TryGetValue(id, out var target) ? target : null;
-        }
-        return _primary;
+        if (!TryRouteId(host, out var id)) return _primary;
+        if (string.IsNullOrEmpty(id)) return _primary;
+        return _idToTarget.TryGetValue(id, out var target) ? target : null;
     }
 
     public bool IsTextResponse(IReadOnlyDictionary<string, string[]> headers)
@@ -137,13 +151,12 @@ public sealed partial class Translator
         var targetBase = uri.Scheme + "://" + host + (port ?? "");
         if (string.Equals(targetBase, _primary, StringComparison.OrdinalIgnoreCase)) return _apexOrigin;
         var id = GetOrAllocateId(targetBase);
-        return _publicScheme + "://" + id + _suffix + (_publicPort is null ? "" : ":" + _publicPort);
+        return _publicScheme + "://" + _mainsub + "--" + id + "." + _baseDomain + (_publicPort is null ? "" : ":" + _publicPort);
     }
 
     private bool ShouldTranslate(string host, string? port)
     {
-        if (host.Equals(_apex, StringComparison.OrdinalIgnoreCase)
-            || host.EndsWith(_suffix, StringComparison.OrdinalIgnoreCase))
+        if (IsOwnHost(host))
             return false;
 
         var loopback = host is "localhost" or "127.0.0.1" or "[::1]";

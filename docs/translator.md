@@ -20,7 +20,7 @@ Through an ordinary tunnel the visitor's browser resolves `localhost:8000` to th
 
 ```html
 <script>
-  fetch("http://a1b2c3.happy-otter.localhost:5080/api/items")
+  fetch("http://happy-otter--a1b2c3.localhost:5080/api/items")
 </script>
 ```
 
@@ -33,10 +33,10 @@ visitor's browser
   │  loads https://happy-otter.gul.example.com  (your :3000 app)
   ▼
 gul client                    response body references http://localhost:8000
-  │  rewrites it to http://a1b2c3.happy-otter.gul.example.com
+  │  rewrites it to http://happy-otter--a1b2c3.gul.example.com
   ▼
 visitor's browser
-  │  GET https://a1b2c3.happy-otter.gul.example.com/api/items
+  │  GET https://happy-otter--a1b2c3.gul.example.com/api/items
   ▼
 gul client                    a1b2c3 maps to local port 8000
   │  GET http://localhost:8000/api/items
@@ -49,7 +49,7 @@ Step by step:
 1. You open your primary tunnel, e.g. `gul 3000`.
 2. A visitor request comes down the tunnel and your local app answers.
 3. Before the response is sent back, the client scans it for absolute `http(s)` URLs that point at local services.
-4. For each distinct host and port it mints a short route id and rewrites the URL to `http://<routeId>.<yoursub>.<basedomain>` (for example `http://a1b2c3.happy-otter.localhost:5080`).
+4. For each distinct host and port it mints a short route id and rewrites the URL to `http://<yoursub>--<routeId>.<basedomain>` (for example `http://happy-otter--a1b2c3.localhost:5080`).
 5. When the visitor's browser calls that route, Gul forwards it to the matching local port, exactly like the primary tunnel.
 
 All of this happens client-side, on your machine. The server just forwards bytes.
@@ -63,7 +63,7 @@ Compressed responses (`gzip`, `brotli`, `deflate`) are transparently decompresse
 
 ## CORS
 
-Because your services now live on different gul origins (the apex for your primary app, `<routeId>.<sub>` for each translated service), a browser treats calls between them as cross-origin and would normally block them. Gul handles this for you with bidirectional origin translation.
+Because your services now live on different gul origins (the apex for your primary app, `<sub>--<routeId>` for each translated service), a browser treats calls between them as cross-origin and would normally block them. Gul handles this for you with bidirectional origin translation.
 
 - On the way in, it rewrites the `Origin` and `Referer` request headers from the gul origin back to the real local origin, so your service's CORS check sees the origin it was configured for.
 - On the way out, it rewrites `Access-Control-Allow-Origin` from the local origin to the gul origin, so the browser is satisfied.
@@ -100,10 +100,10 @@ gul 3000 --no-translate           # turn translation off for this run
 
 `--no-translate` is shorthand for `--translate off`. A flag on the command line wins over the config file for that run.
 
-## Production TLS caveat
+## TLS
 
-Translated routes add a label in front of your subdomain, so `happy-otter.gul.example.com` becomes `a1b2c3.happy-otter.gul.example.com`. A single-label wildcard certificate for `*.gul.example.com` does **not** cover that deeper name, because a wildcard matches exactly one label. To serve translated routes over HTTPS in production you need a certificate that also covers `*.<sub>.gul.example.com` (or a wildcard issued per active subdomain).
+Translated routes fold the route id into the subdomain label, so `happy-otter.gul.example.com` becomes `happy-otter--a1b2c3.gul.example.com`. That is still one label under your base domain, so a single `*.gul.example.com` wildcard certificate covers your primary tunnel and every translated route. There is nothing extra to issue.
 
-On `*.localhost` this never comes up. Local development speaks plain HTTP, browsers resolve every `*.localhost` name to loopback, and nested labels like `a1b2c3.happy-otter.localhost` work out of the box.
+On `*.localhost` it works the same. Local development speaks plain HTTP, and browsers resolve every `*.localhost` name to loopback.
 
 See also: [CLI client](./cli.md) · [Self-host Gul](./self-host.md) · [What is Gul?](./intro.md)

@@ -43,9 +43,13 @@ public sealed class TunnelForwardingMiddleware
 
         if (!_registry.TryGet(subdomain, out var connectionId))
         {
-            context.Response.StatusCode = StatusCodes.Status502BadGateway;
-            await context.Response.WriteAsync($"No active tunnel for {subdomain}");
-            return;
+            var sep = subdomain.LastIndexOf("--", StringComparison.Ordinal);
+            if (sep <= 0 || !_registry.TryGet(subdomain[..sep], out connectionId))
+            {
+                context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                await context.Response.WriteAsync($"No active tunnel for {subdomain}");
+                return;
+            }
         }
 
         if (context.WebSockets.IsWebSocketRequest)

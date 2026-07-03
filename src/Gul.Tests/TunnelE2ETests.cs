@@ -80,7 +80,16 @@ public class TunnelE2ETests
         if ((await nmResp.Content.ReadAsByteArrayAsync(ct)).Length != 0)
             throw new Exception("304 response must have no body");
 
-        Console.WriteLine($"E2E OK: {url} -> localhost:{targetPort}, GET, POST, and 304 forwarded.");
+        var dot = host.IndexOf('.');
+        var routeHost = host[..dot] + "--rtest." + host[(dot + 1)..];
+        using var routeClient = factory.CreateClient();
+        routeClient.DefaultRequestHeaders.Host = routeHost;
+        var routeResp = await routeClient.GetAsync("/via-route", ct);
+        var routeBody = await routeResp.Content.ReadAsStringAsync(ct);
+        if (routeResp.StatusCode != HttpStatusCode.OK || routeBody != "GET /via-route")
+            throw new Exception($"route host {routeHost} did not reach the tunnel: {(int)routeResp.StatusCode} '{routeBody}'");
+
+        Console.WriteLine($"E2E OK: {url} -> localhost:{targetPort}, GET, POST, 304, and {routeHost} route forwarded.");
     }
 
     private static async Task<WebApplication> StartTargetAsync()

@@ -177,7 +177,6 @@ There's no database and no migrations. The container comes up, clients reconnect
 | `401` on the hub / "can't open a tunnel" | `Oidc__Authority` must match the token's `issuer` byte-for-byte, and the discovery URL must be reachable **from inside the container**. |
 | TLS error on a brand-new subdomain | The certificate must cover `*.gul.example.com`. Per-subdomain certs won't keep up, so use a wildcard cert (Caddy on-demand TLS or a DNS-01 challenge). |
 | Login opens no browser on a headless host | The CLI prints the authorize URL as a fallback. The redirect returns to a loopback listener on the *same* machine, so complete login in a browser there (or tunnel the loopback port to your workstation). |
-| Translated route (`<id>.<sub>.gul.example.com`) fails TLS | Translated routes add a label in front of the subdomain, so a `*.gul.example.com` cert doesn't cover them. Serve a cert that also covers `*.<sub>.gul.example.com`. See the [translator TLS caveat](./translator.md#production-tls-caveat). |
 
 </details>
 

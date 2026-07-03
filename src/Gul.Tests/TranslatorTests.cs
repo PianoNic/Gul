@@ -10,7 +10,7 @@ public class TranslatorTests
     private const int PrimaryPort = 3000;
 
     private static readonly Regex RouteHostPattern =
-        new(@"r[0-9a-f]+\.happy-otter\.localhost", RegexOptions.IgnoreCase);
+        new(@"happy-otter--r[0-9a-f]+\.localhost", RegexOptions.IgnoreCase);
 
     [Test]
     public void Mode_all_rewrites_loopback_authority_and_preserves_path()
@@ -19,7 +19,7 @@ public class TranslatorTests
         var input = "before http://localhost:8000/api after";
         var output = Encoding.UTF8.GetString(t.RewriteBody(Encoding.UTF8.GetBytes(input)));
 
-        var expected = new Regex(@"http://r[0-9a-f]+\.happy-otter\.localhost:5080/api");
+        var expected = new Regex(@"http://happy-otter--r[0-9a-f]+\.localhost:5080/api");
         if (!expected.IsMatch(output))
             throw new Exception($"Expected a rewritten route URL, got: '{output}'");
         if (output.Contains("localhost:8000"))
@@ -111,7 +111,7 @@ public class TranslatorTests
         var t = new Translator(PublicUrl, 4000, "aggressive", null);
         var input = "img https://cdn.example.com/x end";
         var output = Encoding.UTF8.GetString(t.RewriteBody(Encoding.UTF8.GetBytes(input)));
-        var expected = new Regex(@"http://r[0-9a-f]+\.happy-otter\.localhost:5080");
+        var expected = new Regex(@"http://happy-otter--r[0-9a-f]+\.localhost:5080");
         if (!expected.IsMatch(output))
             throw new Exception($"aggressive mode should rewrite external host to a route URL, got: '{output}'");
         if (output.Contains("cdn.example.com"))
