@@ -63,3 +63,5 @@ app.MapGet("/config", (IConfiguration config) => Results.Ok(new
 app.MapHub<TunnelHub>("/tunnel").RequireAuthorization();
 
 app.Run();
+
+public partial class Program { }

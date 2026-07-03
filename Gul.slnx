@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="src/Gul.Server/Gul.Server.csproj" />
   <Project Path="src/Gul.Client/Gul.Client.csproj" />
+  <Project Path="src/Gul.Tests/Gul.Tests.csproj" />
 </Solution>
