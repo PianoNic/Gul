@@ -199,17 +199,18 @@ public static class OidcLogin
                 throw new InvalidOperationException("Login failed: " + error);
             }
 
-            WriteAndClose(ctx, 200, "Login complete. You can close this tab and return to your terminal.");
+            WriteAndClose(ctx, 200, "Login complete. This tab will close automatically.", autoClose: true);
             return query["code"]!;
         }
     }
 
-    private static void WriteAndClose(HttpListenerContext ctx, int status, string message)
+    private static void WriteAndClose(HttpListenerContext ctx, int status, string message, bool autoClose = false)
     {
+        var script = autoClose ? "<script>setTimeout(function(){window.close();},300)</script>" : "";
         var body = Encoding.UTF8.GetBytes(
             $"<!doctype html><html><head><meta charset=\"utf-8\"><title>Gul</title></head>" +
             $"<body style=\"font-family:system-ui;background:#0B0F14;color:#E6EDF3;display:grid;place-items:center;height:100vh;margin:0\">" +
-            $"<p style=\"font-size:1.1rem\">{message}</p></body></html>");
+            $"<p style=\"font-size:1.1rem\">{message}</p>{script}</body></html>");
         ctx.Response.StatusCode = status;
         ctx.Response.ContentType = "text/html; charset=utf-8";
         ctx.Response.ContentLength64 = body.Length;
