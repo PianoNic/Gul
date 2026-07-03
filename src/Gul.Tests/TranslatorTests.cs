@@ -47,6 +47,29 @@ public class TranslatorTests
     }
 
     [Test]
+    public void Loopback_spellings_collapse_to_one_route_and_public_scheme_is_exposed()
+    {
+        var t = new Translator(PublicUrl, PrimaryPort, "all", null);
+
+        if (t.PublicScheme != "http")
+            throw new Exception($"PublicScheme should be 'http', got '{t.PublicScheme}'");
+        if (!t.TranslationEnabled)
+            throw new Exception("TranslationEnabled should be true for mode 'all'");
+        if (new Translator(PublicUrl, PrimaryPort, "off", null).TranslationEnabled)
+            throw new Exception("TranslationEnabled should be false for mode 'off'");
+
+        var viaName = Encoding.UTF8.GetString(t.RewriteBody(Encoding.UTF8.GetBytes("x http://localhost:8000/a")));
+        var viaIp = Encoding.UTF8.GetString(t.RewriteBody(Encoding.UTF8.GetBytes("x http://127.0.0.1:8000/a")));
+        var nameHost = RouteHostPattern.Match(viaName).Value;
+        var ipHost = RouteHostPattern.Match(viaIp).Value;
+        if (string.IsNullOrEmpty(nameHost) || nameHost != ipHost)
+            throw new Exception($"localhost and 127.0.0.1 must share one route host: '{nameHost}' vs '{ipHost}'");
+
+        if (t.ResolveTarget(ipHost) != "http://localhost:8000")
+            throw new Exception($"ResolveTarget('{ipHost}') returned '{t.ResolveTarget(ipHost)}'");
+    }
+
+    [Test]
     public void Mode_loopback_leaves_external_hosts_while_mode_all_rewrites_them()
     {
         var input = "img https://cdn.example.com/x end";

@@ -118,6 +118,10 @@ public sealed partial class Translator
         return _idToTarget.TryGetValue(id, out var target) ? target : null;
     }
 
+    public string PublicScheme => _publicScheme;
+
+    public bool TranslationEnabled => _mode != "off";
+
     public bool IsTextResponse(IReadOnlyDictionary<string, string[]> headers)
     {
         if (!headers.TryGetValue("Content-Type", out var values) || values.Length == 0) return false;
@@ -148,11 +152,17 @@ public sealed partial class Translator
         var port = uri.IsDefaultPort ? null : ":" + uri.Port;
         if (!ShouldTranslate(host, port)) return matched;
 
-        var targetBase = uri.Scheme + "://" + host + (port ?? "");
+        var targetBase = uri.Scheme + "://" + CanonicalHost(host) + (port ?? "");
         if (string.Equals(targetBase, _primary, StringComparison.OrdinalIgnoreCase)) return _apexOrigin;
         var id = GetOrAllocateId(targetBase);
         return _publicScheme + "://" + _mainsub + "--" + id + "." + _baseDomain + (_publicPort is null ? "" : ":" + _publicPort);
     }
+
+    // localhost, 127.0.0.1 and [::1] are the same machine, so collapse them onto one
+    // canonical host. Equivalent origins then share a single route id, which keeps an
+    // OIDC issuer stable no matter which spelling a discovery document happens to use.
+    private static string CanonicalHost(string host) =>
+        host is "127.0.0.1" or "[::1]" or "::1" ? "localhost" : host;
 
     private bool ShouldTranslate(string host, string? port)
     {

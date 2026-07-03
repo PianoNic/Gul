@@ -83,7 +83,7 @@ The CLI opens the control connection once (after a browser login), registers a s
 
 Gul is a KISS tool, not a platform. A few deliberate ceilings:
 
-- **HTTP(S) only.** Plain WebSocket upgrades on the tunneled app are not proxied. The request/response bodies are buffered, not streamed.
+- **Bodies are buffered, not streamed.** HTTP(S) and `ws(s)://` WebSocket traffic are both tunneled, but each HTTP response is buffered in memory before it goes out, so Gul suits web apps and demos rather than high-throughput file transfer.
 - **In-memory registry.** Subdomain ownership lives in the server's memory. Restart the server and every client simply reconnects and re-registers.
 - **No accounts or quotas.** Anyone your OIDC provider lets in can open a tunnel. Authorization is your IdP's job.
 

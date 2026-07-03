@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.WebSockets;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -19,6 +21,9 @@ namespace Gul.Tests;
 
 public sealed record TunnelRequest(string Method, string Path, Dictionary<string, string[]> Headers, byte[] Body);
 public sealed record TunnelResponse(int Status, Dictionary<string, string[]> Headers, byte[] Body);
+public sealed record SocketOpen(string SocketId, string Host, string Path, string[] SubProtocols);
+public sealed record SocketOpenResult(bool Ok, string? SubProtocol, string? Error);
+public sealed record SocketFrame(string SocketId, bool IsText, byte[] Data);
 
 public class TunnelE2ETests
 {
@@ -90,6 +95,81 @@ public class TunnelE2ETests
             throw new Exception($"route host {routeHost} did not reach the tunnel: {(int)routeResp.StatusCode} '{routeBody}'");
 
         Console.WriteLine($"E2E OK: {url} -> localhost:{targetPort}, GET, POST, 304, and {routeHost} route forwarded.");
+    }
+
+    [Test]
+    public async Task Tunnels_a_websocket_end_to_end()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var ct = cts.Token;
+
+        await using var factory = new GulFactory();
+
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(factory.Server.BaseAddress, "tunnel"), o =>
+            {
+                o.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
+                o.Transports = HttpTransportType.LongPolling;
+            })
+            .Build();
+
+        // Stand-in for the CLI: greet the moment the socket opens (before the server has even
+        // accepted the browser side, to prove early frames aren't dropped), then bounce every
+        // inbound frame back out, and record the exact close code/reason the browser sent.
+        SocketOpen? opened = null;
+        connection.On<SocketOpen, SocketOpenResult>("OpenSocket", async open =>
+        {
+            opened = open;
+            await connection.SendAsync("SocketToPublic", new SocketFrame(open.SocketId, true, Encoding.UTF8.GetBytes("greet")), ct);
+            return new SocketOpenResult(true, open.SubProtocols.FirstOrDefault(), null);
+        });
+        connection.On<SocketFrame>("SocketToLocal", frame => connection.SendAsync("SocketToPublic", frame, ct));
+        var closedByServer = new TaskCompletionSource<(int Status, string? Reason)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.On<string, int, string?>("CloseSocket", (_, status, reason) =>
+        {
+            closedByServer.TrySetResult((status, reason));
+            return Task.CompletedTask;
+        });
+
+        await connection.StartAsync(ct);
+        var url = await connection.InvokeAsync<string>("Register", (string?)null, ct);
+        var host = new Uri(url).Host;
+
+        var wsClient = factory.Server.CreateWebSocketClient();
+        wsClient.SubProtocols.Add("vite-hmr");
+        var ws = await wsClient.ConnectAsync(new Uri($"ws://{host}/?token=abc"), ct);
+
+        if (ws.SubProtocol != "vite-hmr")
+            throw new Exception($"subprotocol not negotiated back to the browser: '{ws.SubProtocol}'");
+        if (opened?.Path != "/?token=abc")
+            throw new Exception($"client did not receive the ws path+query: '{opened?.Path}'");
+
+        var buffer = new byte[1024];
+
+        // The greeting emitted before the bridge existed must still arrive, as the first frame.
+        var greetRecv = await ws.ReceiveAsync(buffer, ct);
+        var greeting = Encoding.UTF8.GetString(buffer, 0, greetRecv.Count);
+        if (greetRecv.MessageType != WebSocketMessageType.Text || greeting != "greet")
+            throw new Exception($"server-greets-first frame was dropped: {greetRecv.MessageType} '{greeting}'");
+
+        await ws.SendAsync(Encoding.UTF8.GetBytes("hello ws"), WebSocketMessageType.Text, true, ct);
+        var textRecv = await ws.ReceiveAsync(buffer, ct);
+        var echoed = Encoding.UTF8.GetString(buffer, 0, textRecv.Count);
+        if (textRecv.MessageType != WebSocketMessageType.Text || echoed != "hello ws")
+            throw new Exception($"text frame did not round-trip: {textRecv.MessageType} '{echoed}'");
+
+        await ws.SendAsync(new byte[] { 1, 2, 3, 4, 5 }, WebSocketMessageType.Binary, true, ct);
+        var binRecv = await ws.ReceiveAsync(buffer, ct);
+        if (binRecv.MessageType != WebSocketMessageType.Binary || binRecv.Count != 5 || buffer[0] != 1 || buffer[4] != 5)
+            throw new Exception($"binary frame did not round-trip: {binRecv.MessageType} count={binRecv.Count}");
+
+        // A custom application close code/reason must reach the local app unchanged.
+        await ws.CloseAsync((WebSocketCloseStatus)4001, "session-expired", ct);
+        var close = await closedByServer.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        if (close.Status != 4001 || close.Reason != "session-expired")
+            throw new Exception($"close code/reason not preserved: {close.Status} '{close.Reason}'");
+
+        Console.WriteLine($"WS E2E OK: {url} negotiated 'vite-hmr', greet+text+binary delivered, close relayed ({close.Status}/'{close.Reason}').");
     }
 
     private static async Task<WebApplication> StartTargetAsync()

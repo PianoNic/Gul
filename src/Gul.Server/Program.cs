@@ -12,6 +12,7 @@ builder.Services.AddSignalR(options =>
 });
 
 builder.Services.AddSingleton<TunnelRegistry>();
+builder.Services.AddSingleton<WebSocketBridgeRegistry>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -39,6 +40,7 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+app.UseWebSockets();
 app.UseMiddleware<TunnelForwardingMiddleware>();
 
 if (app.Environment.IsDevelopment())
