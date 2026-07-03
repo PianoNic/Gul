@@ -135,13 +135,13 @@ static async Task<int> TunnelAsync(string[] args)
             case "--translate" or "-t":
                 if (i + 1 >= args.Length)
                 {
-                    Ui.Err("--translate requires a value (all|loopback|allowlist|off).");
+                    Ui.Err("--translate requires a value (all|aggressive|loopback|allowlist|off).");
                     return 1;
                 }
                 translate = args[++i].ToLowerInvariant();
-                if (translate is not ("all" or "loopback" or "allowlist" or "off"))
+                if (translate is not ("all" or "aggressive" or "loopback" or "allowlist" or "off"))
                 {
-                    Ui.Err("--translate must be one of all|loopback|allowlist|off.");
+                    Ui.Err("--translate must be one of all|aggressive|loopback|allowlist|off.");
                     return 1;
                 }
                 break;
@@ -252,7 +252,7 @@ static void PrintUsage()
 
         Options:
           --name <sub>                          Request a specific subdomain
-          --translate <all|loopback|allowlist|off>  Rewrite local URLs in responses (default all)
+          --translate <all|aggressive|loopback|allowlist|off>  Rewrite local URLs in responses (default all)
           --no-translate                        Disable URL rewriting (same as --translate off)
 
         Examples:

@@ -119,6 +119,8 @@ public sealed partial class Translator
         return ReferenceEquals(rewritten, text) ? body : Encoding.UTF8.GetBytes(rewritten);
     }
 
+    public bool RewriteAllHeaders => _mode == "aggressive";
+
     public string RewriteLocation(string url) => _mode == "off" ? url : UrlPattern().Replace(url, Rewrite);
 
     private string Rewrite(Match match)
@@ -150,6 +152,7 @@ public sealed partial class Translator
             "off" => false,
             "loopback" => loopback,
             "allowlist" => loopback || _allow.Contains(host) || _allow.Contains(host + (port ?? "")),
+            "aggressive" => true,
             _ => true,
         };
     }

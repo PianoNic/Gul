@@ -84,7 +84,7 @@ If the name is already taken or invalid (names must be lowercase `a-z`, `0-9`, `
 | `gul login` | Run the browser OIDC login and save the tokens. |
 | `gul logout` | Clear the saved tokens (keeps the server URL). |
 | `gul <port> [--name <sub>] [--translate <mode>]` | Ensure a valid token, open a tunnel to `localhost:<port>`, and forward until Ctrl+C. |
-| `gul <port> --translate <all\|loopback\|allowlist\|off>` | Set URL translation for this run. `--no-translate` is shorthand for `--translate off`. See [Auto-router translator](./translator.md). |
+| `gul <port> --translate <all\|loopback\|allowlist\|aggressive\|off>` | Set URL translation for this run. `--no-translate` is shorthand for `--translate off`. See [Auto-router translator](./translator.md). |
 | `gul` / `gul --help` | Print usage. |
 
 ## Configuration file
@@ -110,7 +110,7 @@ Everything the CLI remembers lives in a single JSON file:
 
 - **`ServerUrl`** is set by `gul remote`.
 - The token fields are written by `gul login` and refreshed automatically before a tunnel opens. `gul logout` clears them.
-- **`Translate`** controls URL translation. It takes `loopback` (the default), `allowlist`, `all`, or `off`, and the `--translate` flag overrides it for a single run. See [Auto-router translator](./translator.md).
+- **`Translate`** controls URL translation. It takes `loopback` (the default), `allowlist`, `all`, `aggressive`, or `off`, and the `--translate` flag overrides it for a single run. See [Auto-router translator](./translator.md).
 - **`TranslateHosts`** is the list of hosts to rewrite when `Translate` is `allowlist`, and it is ignored in the other modes.
 - Delete the file to start completely fresh, or re-run `gul remote <url>` to repoint at a different server.
 

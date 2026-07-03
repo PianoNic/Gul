@@ -106,6 +106,30 @@ public class TranslatorTests
     }
 
     [Test]
+    public void Aggressive_mode_translates_external_and_rewrites_all_headers()
+    {
+        var t = new Translator(PublicUrl, 4000, "aggressive", null);
+        var input = "img https://cdn.example.com/x end";
+        var output = Encoding.UTF8.GetString(t.RewriteBody(Encoding.UTF8.GetBytes(input)));
+        var expected = new Regex(@"http://r[0-9a-f]+\.happy-otter\.localhost:5080");
+        if (!expected.IsMatch(output))
+            throw new Exception($"aggressive mode should rewrite external host to a route URL, got: '{output}'");
+        if (output.Contains("cdn.example.com"))
+            throw new Exception($"aggressive mode should replace external authority, got: '{output}'");
+
+        if (!t.RewriteAllHeaders)
+            throw new Exception("aggressive mode should have RewriteAllHeaders == true");
+
+        var all = new Translator(PublicUrl, 4000, "all", null);
+        if (all.RewriteAllHeaders)
+            throw new Exception("all mode should have RewriteAllHeaders == false");
+
+        var loopback = new Translator(PublicUrl, 4000, "loopback", null);
+        if (loopback.RewriteAllHeaders)
+            throw new Exception("loopback mode should have RewriteAllHeaders == false");
+    }
+
+    [Test]
     public void RedirectParams_are_rewritten_inbound()
     {
         var t = new Translator(PublicUrl, 4000, "all", null);

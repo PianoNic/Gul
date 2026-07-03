@@ -24,7 +24,7 @@ public sealed class TunnelClient
         _config = config;
         _port = port;
         _requestedName = requestedName;
-        _http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        _http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, AutomaticDecompression = System.Net.DecompressionMethods.All });
     }
 
     public async Task RunAsync(CancellationToken ct)
@@ -120,6 +120,8 @@ public sealed class TunnelClient
             {
                 if (string.Equals(name, "Host", StringComparison.OrdinalIgnoreCase)) continue;
 
+                if (string.Equals(name, "Accept-Encoding", StringComparison.OrdinalIgnoreCase)) continue;
+
                 if (HopByHop.Contains(name)) continue;
 
                 var outValues = values;
@@ -147,11 +149,19 @@ public sealed class TunnelClient
                 if (_translator.IsTextResponse(headers))
                     responseBody = _translator.RewriteBody(responseBody);
 
-                if (headers.TryGetValue("Location", out var location) && location.Length > 0 && !string.IsNullOrEmpty(location[0]))
-                    headers["Location"] = [_translator.RewriteLocation(location[0])];
+                if (_translator.RewriteAllHeaders)
+                {
+                    foreach (var key in headers.Keys.ToArray())
+                        headers[key] = headers[key].Select(_translator.RewriteLocation).ToArray();
+                }
+                else
+                {
+                    if (headers.TryGetValue("Location", out var location) && location.Length > 0 && !string.IsNullOrEmpty(location[0]))
+                        headers["Location"] = [_translator.RewriteLocation(location[0])];
 
-                if (headers.TryGetValue("Access-Control-Allow-Origin", out var acao) && acao.Length > 0 && !string.IsNullOrEmpty(acao[0]))
-                    headers["Access-Control-Allow-Origin"] = [.. acao.Select(_translator.RewriteLocation)];
+                    if (headers.TryGetValue("Access-Control-Allow-Origin", out var acao) && acao.Length > 0 && !string.IsNullOrEmpty(acao[0]))
+                        headers["Access-Control-Allow-Origin"] = [.. acao.Select(_translator.RewriteLocation)];
+                }
             }
 
             return new TunnelResponse((int)response.StatusCode, headers, responseBody);

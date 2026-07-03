@@ -59,6 +59,8 @@ All of this happens client-side, on your machine. The server just forwards bytes
 - **Text response bodies** such as HTML, CSS, JavaScript, and JSON. Binary bodies are left untouched.
 - **The `Location` redirect header**, so a `3xx` that points at another local service keeps working through the tunnel.
 
+Compressed responses (`gzip`, `brotli`, `deflate`) are transparently decompressed before rewriting, so a gzipped local service is handled the same as a plain one.
+
 ## CORS
 
 Because your services now live on different gul origins (the apex for your primary app, `<routeId>.<sub>` for each translated service), a browser treats calls between them as cross-origin and would normally block them. Gul handles this for you with bidirectional origin translation.
@@ -93,8 +95,10 @@ Translation is on by default for your local services, the loopback hosts (`local
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |
-| `Translate` | `loopback`, `allowlist`, `all`, `off` | `loopback` | `loopback` (the default) rewrites only loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). `allowlist` also rewrites the hosts listed in `TranslateHosts`. `all` rewrites every absolute `http(s)` URL including external ones, which can break third-party services like Microsoft or Google, so use it deliberately. `off` disables translation entirely. |
+| `Translate` | `loopback`, `allowlist`, `all`, `aggressive`, `off` | `loopback` | `loopback` (the default) rewrites only loopback hosts (`localhost`, `127.0.0.1`, `[::1]`). `allowlist` also rewrites the hosts listed in `TranslateHosts`. `all` rewrites every absolute `http(s)` URL including external ones, which can break third-party services like Microsoft or Google, so use it deliberately. `aggressive` rewrites every host like `all` and additionally rewrites every response header rather than just `Location`, for the rare app that hides local URLs in unusual headers. `off` disables translation entirely. |
 | `TranslateHosts` | `string[]` | `[]` | The hosts to rewrite when `Translate` is `allowlist`. Ignored in the other modes. |
+
+Even `aggressive` mode cannot make a locked-down third-party identity provider such as Microsoft or Google log in through the tunnel, because their cookies, CSP, and anti-forgery tokens are bound to their real origin.
 
 Both live in the client config file (`~/.gul/config.json`). See the [CLI config reference](./cli.md#configuration-file).
 
@@ -103,8 +107,9 @@ Both live in the client config file (`~/.gul/config.json`). See the [CLI config 
 Set the mode for a single tunnel with `--translate`:
 
 ```bash
-gul 3000 --translate loopback     # rewrite only loopback references
-gul 3000 --translate all          # rewrite everything (the default)
+gul 3000                          # loopback (the default): only local references
+gul 3000 --translate all          # also route external hosts
+gul 3000 --translate aggressive   # all hosts plus every response header
 gul 3000 --no-translate           # turn translation off for this run
 ```
 
