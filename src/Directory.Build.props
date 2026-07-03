@@ -1,0 +1,23 @@
+<Project>
+
+  <PropertyGroup>
+    <_VersionFile>$(MSBuildThisFileDirectory)..\application.properties</_VersionFile>
+  </PropertyGroup>
+
+  <Target Name="_ReadVersionFromProperties"
+          BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;Build"
+          Condition="Exists('$(_VersionFile)')">
+    <XmlPeek XmlInputPath="$(_VersionFile)" Query="/properties/version/text()">
+      <Output TaskParameter="Result" ItemName="_VersionFromFile" />
+    </XmlPeek>
+    <PropertyGroup>
+      <_RawVersion>@(_VersionFromFile)</_RawVersion>
+      <Version>$(_RawVersion.TrimStart('v').TrimStart('V'))</Version>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-v5pm-xwqc-g5wc" />
+  </ItemGroup>
+
+</Project>

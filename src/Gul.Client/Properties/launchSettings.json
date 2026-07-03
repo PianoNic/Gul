@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Gul.Client": {
+      "commandName": "Project",
+      "commandLineArgs": "--help"
+    }
+  }
+}

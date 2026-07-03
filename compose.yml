@@ -1,0 +1,14 @@
+services:
+  gul:
+    image: ghcr.io/pianonic/gul:latest
+    build:
+      context: .
+      dockerfile: src/Gul.Server/Dockerfile
+    container_name: gul
+    restart: unless-stopped
+    environment:
+      Gul__BaseDomain: "gul.example.com"
+      Oidc__Authority: "https://auth.example.com/realms/gul"
+      Oidc__ClientId: "gul"
+    ports:
+      - "8080:8080"
