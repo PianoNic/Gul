@@ -36,11 +36,11 @@ export default defineConfig({
       },
     ],
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/PianoNic/gul' },
+      { icon: 'github', link: 'https://github.com/PianoNic/Gul' },
     ],
     search: { provider: 'local' },
     editLink: {
-      pattern: 'https://github.com/PianoNic/gul/edit/main/docs/:path',
+      pattern: 'https://github.com/PianoNic/Gul/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
     footer: {

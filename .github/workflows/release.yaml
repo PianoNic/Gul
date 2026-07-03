@@ -116,7 +116,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rid: [win-x64, linux-x64, osx-x64, osx-arm64]
+        rid: [win-x64, win-arm64, linux-x64, linux-arm64, osx-x64, osx-arm64]
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -136,10 +136,13 @@ jobs:
           VERSION="${{ needs.sync-version.outputs.version }}"
           dotnet publish src/Gul.Client -c Release -r ${{ matrix.rid }} --self-contained \
             -p:PublishSingleFile=true -p:Version="$VERSION" -o out
-          if [ "${{ matrix.rid }}" = "win-x64" ]; then
-            mv out/Gul.Client.exe "gul-${{ matrix.rid }}.exe"
-            gh release upload "$TAG" "gul-${{ matrix.rid }}.exe" --clobber
-          else
-            mv out/Gul.Client "gul-${{ matrix.rid }}"
-            gh release upload "$TAG" "gul-${{ matrix.rid }}" --clobber
-          fi
+          case "${{ matrix.rid }}" in
+            win-*)
+              mv out/Gul.Client.exe "gul-${{ matrix.rid }}.exe"
+              gh release upload "$TAG" "gul-${{ matrix.rid }}.exe" --clobber
+              ;;
+            *)
+              mv out/Gul.Client "gul-${{ matrix.rid }}"
+              gh release upload "$TAG" "gul-${{ matrix.rid }}" --clobber
+              ;;
+          esac

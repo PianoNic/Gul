@@ -1,12 +1,13 @@
 <p align="center">
-  <img src="assets/gul-icon.svg" width="160" alt="Gul logo" />
+  <img src="assets/gul-icon.svg" width="180" alt="Gul" />
 </p>
 <p align="center">
   <strong>Gul</strong> <sub>(굴 — Korean for tunnel/burrow/cave)</sub><br/>
-  Instant public HTTPS URLs for your localhost. A minimal, self-hosted devtunnel.
+  One command. Your localhost, live on the internet.
 </p>
 <p align="center">
-  <a href="https://github.com/PianoNic/gul"><img src="https://img.shields.io/badge/Self--Host-Instructions-0B0F14.svg?labelColor=0B0F14&color=30363D" alt="Self-hosting" /></a>
+  <a href="https://github.com/PianoNic/Gul"><img src="https://badgetrack.pianonic.ch/badge?tag=gul&label=visits&color=0B0F14&style=flat" alt="visits" /></a>
+  <a href="https://docs.gul.pianonic.ch/self-host"><img src="https://img.shields.io/badge/Self--Host-Instructions-0B0F14.svg?labelColor=0B0F14&color=30363D" alt="Self-hosting" /></a>
   <img src="https://img.shields.io/badge/.NET-10-0B0F14.svg?labelColor=0B0F14&color=30363D" alt=".NET 10" />
   <img src="https://img.shields.io/badge/SignalR-client--results-0B0F14.svg?labelColor=0B0F14&color=30363D" alt="SignalR" />
 </p>
@@ -17,102 +18,63 @@
 
 ## What is Gul?
 
-Gul is a tiny, ngrok-style devtunnel you host yourself. Run one command — `gul 3000` — and a
-public HTTPS URL like `https://happy-otter.gul.example.com` forwards straight to a server running
-on your machine. No inbound firewall holes, no port forwarding: the CLI holds one outbound
-connection open and the server pushes each public request down it.
-
-- **One binary CLI.** A self-contained single-file executable per OS. Only dependency is SignalR.
-- **No database, no frontend.** Two projects, KISS. The server keeps the tunnel registry in memory.
-- **OIDC-protected control plane.** Opening a tunnel requires a browser login (Auth Code + PKCE).
-  Public visitors to your tunnel stay anonymous.
-- **Behind your own proxy.** Gul rides on an existing wildcard reverse proxy that already
-  terminates TLS for `*.gul.example.com`.
+Gul is a tiny, self-hosted devtunnel — an ngrok you host yourself. Run one command, `gul 3000`, and a public HTTPS URL like `https://happy-otter.gul.example.com` forwards straight to a server running on your machine. Pick a random subdomain or claim your own, sign in through your OIDC provider, and you're live — no inbound firewall holes, no port forwarding.
 
 ## How it works
 
-```
-   public visitor                                                     you
-        │                                                              │
-        │  GET https://happy-otter.gul.example.com/whatever      gul 3000  (OIDC browser login)
-        ▼                                                              │
- ┌──────────────────────┐                                             ▼
- │  wildcard reverse     │        forwards Host + request      ┌──────────────┐   SignalR    ┌────────────┐
- │  proxy (TLS for       │ ─────────────────────────────────► │  Gul.Server   │ ◄══════════► │ gul client │
- │  *.gul.example.com)    │                                     │  (in-memory   │  client      │ (your box) │
- └──────────────────────┘                                     │   registry)   │  result      └─────┬──────┘
-        ▲                                                      └──────────────┘                     │
-        │                     TunnelResponse ◄───────────────────────────────────────────────      ▼
-        └──────────────────────────────────────────────────────────────────────  http://localhost:3000
-```
+```mermaid
+sequenceDiagram
+    participant V as Public visitor
+    participant P as Reverse proxy
+    participant S as Gul.Server
+    participant C as gul client
+    participant L as Your local app
 
-1. The CLI authenticates via OIDC, opens a SignalR connection to `Gul.Server`, and is assigned a
-   subdomain (random friendly name, or `--name yours`).
-2. A visitor hits `https://<sub>.gul.example.com`. Your wildcard proxy forwards it to `Gul.Server`.
-3. `Gul.Server` reads the `Host` header, finds the connection that owns `<sub>`, and invokes
-   `ForwardRequest` on that client (a SignalR **client result**) — awaiting the response.
-4. The client re-issues the request to `http://localhost:3000` and returns the response back over
-   the connection. The server writes it to the original visitor.
+    Note over C,S: gul 3000 - OIDC login, then register the tunnel
+    C->>S: open SignalR, then Register
+    S-->>C: assigns myapp.gul.example.com
 
-## Use it (CLI)
-
-Download the `gul` binary for your OS from the [latest release](https://github.com/PianoNic/gul/releases),
-put it on your `PATH` (on Unix: `chmod +x gul-*`), then:
-
-```sh
-gul setup                  # store your server URL, e.g. https://gul.example.com
-gul login                  # browser OIDC login (stores tokens)
-gul 3000                   # open a tunnel to http://localhost:3000, prints the public URL
-gul 3000 --name myapp      # request a custom subdomain (myapp.gul.example.com) if it is free
-gul logout                 # clear stored tokens
+    V->>P: GET https://myapp.gul.example.com/path
+    P->>S: forward with Host header
+    S->>C: ForwardRequest, a SignalR client result
+    C->>L: GET http://localhost:3000/path
+    L-->>C: response
+    C-->>S: TunnelResponse
+    S-->>P: response
+    P-->>V: response
 ```
 
-Config lives at `~/.gul/config.json` (server URL + tokens).
+1. Run `gul 3000`. The CLI signs you in via OIDC, opens a SignalR connection to `Gul.Server`, and is assigned a subdomain (a random friendly name, or `--name yours`).
+2. A visitor hits `https://<sub>.gul.example.com`. Your wildcard reverse proxy forwards it to `Gul.Server`.
+3. `Gul.Server` reads the `Host` header, finds the connection that owns `<sub>`, and invokes `ForwardRequest` on that client (a SignalR **client result**), awaiting the response.
+4. The client re-issues the request to `http://localhost:3000` and streams the response back over the connection. The server writes it to the original visitor.
 
-## Self-host the server
+## Features
 
-Gul.Server runs as a single container and expects an **existing** wildcard reverse proxy to
-terminate TLS and forward both `*.gul.example.com` (tunnels) and the apex `gul.example.com`
-(control plane) to it on port `8080`.
+- **One command.** `gul 3000` and your local port is live at a public HTTPS URL.
+- **Random or named subdomains.** A friendly name like `happy-otter` by default, or claim your own with `--name myapp`.
+- **OIDC-protected control plane.** Only you can open tunnels — a browser login (Authorization Code + PKCE) guards the control connection. Visitors to your tunnel stay anonymous.
+- **One small binary.** A self-contained single-file CLI per OS. No agent, no daemon, no database.
+- **Behind your own proxy.** Gul rides on an existing wildcard reverse proxy that already terminates TLS for `*.gul.example.com`.
 
-```sh
-docker compose up -d
-```
+## Get started
 
-Caddy example for the proxy you already run:
+- 📦 **[Self-host guide](https://docs.gul.pianonic.ch/self-host)** — run the server image with `docker compose` behind your wildcard reverse proxy.
+- 🛠️ **[CLI usage](https://docs.gul.pianonic.ch/cli)** — install `gul`, then `gul remote`, `gul login`, `gul <port>`.
+- 🧑‍💻 **[Developer setup](https://docs.gul.pianonic.ch/dev-setup)** — `dotnet run` the server and client locally.
 
-```
-*.gul.example.com, gul.example.com {
-    reverse_proxy gul:8080
-}
-```
+Full documentation: **[docs.gul.pianonic.ch](https://docs.gul.pianonic.ch)**
 
-### Server environment variables
+<details>
+<summary><strong>Tech stack</strong></summary>
 
-| Variable                   | Default                | Description                                                        |
-| -------------------------- | ---------------------- | ------------------------------------------------------------------ |
-| `Gul__BaseDomain`          | —                      | The zone tunnels live under, e.g. `gul.example.com`.                |
-| `Oidc__Authority`          | —                      | OIDC issuer URL. The CLI control connection validates tokens here. |
-| `Oidc__ClientId`           | —                      | Public (PKCE, no secret) client id used by the CLI.                |
-| `Oidc__Scopes`             | `openid profile email` | Space-separated scopes requested at login.                         |
-| `Oidc__RequireHttpsMetadata` | `true`               | Set `false` only for local/dev issuers over HTTP.                  |
+- **.NET 10** ASP.NET Core server — a SignalR hub plus a host-header forwarding middleware, with an in-memory tunnel registry (no database, no frontend).
+- **.NET 10** self-contained console CLI (`Microsoft.AspNetCore.SignalR.Client`), shipped as one binary per OS.
+- **SignalR client results** carry each public HTTP request down to the client and the response back.
+- **OIDC** — Authorization Code + PKCE with a loopback redirect on the client; JwtBearer validation on the server.
+- **Scalar** + OpenAPI in development.
 
-Register the OIDC client as a **public** client (PKCE, no secret) whose allowed redirect URIs
-include `http://127.0.0.1/*` and `http://localhost/*` for the CLI's loopback login.
-
-## Develop
-
-Two projects, no database, no migrations:
-
-```sh
-dotnet run --project src/Gul.Server              # the tunnel server (listens on :8080)
-dotnet run --project src/Gul.Client -- 3000      # the CLI, tunnelling localhost:3000
-```
-
-- `src/Gul.Server` — ASP.NET Core: the `/tunnel` SignalR hub + a terminal forwarding middleware.
-- `src/Gul.Client` — self-contained console CLI.
-
-Full documentation: the `docs/` folder (VitePress).
+</details>
 
 ## License
 
