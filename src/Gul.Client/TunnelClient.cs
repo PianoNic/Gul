@@ -20,6 +20,7 @@ public sealed class TunnelClient
     private readonly string? _requestedName;
 
     private readonly HttpClient _http;
+    private readonly RouteTable _routes;
     private readonly ConcurrentDictionary<string, ClientSocket> _sockets = new(StringComparer.Ordinal);
     // Close signals that arrive before OpenSocket finishes registering the socket, mapped to the
     // tick they arrived; consumed on registration and otherwise evicted once too old to be claimed.
@@ -33,6 +34,7 @@ public sealed class TunnelClient
         _port = port;
         _requestedName = requestedName;
         _http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, AutomaticDecompression = System.Net.DecompressionMethods.All });
+        _routes = RouteTable.ForPort(port);
     }
 
     public async Task RunAsync(CancellationToken ct)
@@ -63,7 +65,7 @@ public sealed class TunnelClient
             try
             {
                 var url = await connection.InvokeAsync<string>("Register", _requestedName, CancellationToken.None);
-                _translator = new Translator(url, _port, _config.Translate, _config.TranslateHosts);
+                _translator = new Translator(url, _port, _config.Translate, _config.TranslateHosts, _routes);
                 Console.WriteLine($"{Ui.Green("Reconnected.")}  {Ui.Url(url)}  {Ui.Dim("->")}  {Ui.Dim($"http://localhost:{_port}")}");
             }
             catch (Exception ex)
@@ -76,7 +78,7 @@ public sealed class TunnelClient
         try
         {
             var publicUrl = await connection.InvokeAsync<string>("Register", _requestedName, ct);
-            _translator = new Translator(publicUrl, _port, _config.Translate, _config.TranslateHosts);
+            _translator = new Translator(publicUrl, _port, _config.Translate, _config.TranslateHosts, _routes);
             Console.WriteLine();
             Console.WriteLine($"  {Ui.Badge}  {Ui.Green("Tunnel live")}");
             Console.WriteLine($"  {Ui.Url(publicUrl)}  {Ui.Dim("->")}  {Ui.Dim($"http://localhost:{_port}")}");
