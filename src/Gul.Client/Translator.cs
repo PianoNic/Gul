@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -28,11 +26,11 @@ public sealed partial class Translator
     private readonly string _publicScheme;
     private readonly string? _publicPort;
     private readonly string _apexOrigin;
-    private readonly ConcurrentDictionary<string, string> _idToTarget = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, string> _targetToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly RouteTable _routes;
 
-    public Translator(string publicUrl, int primaryPort, string? mode, IEnumerable<string>? allowHosts)
+    public Translator(string publicUrl, int primaryPort, string? mode, IEnumerable<string>? allowHosts, RouteTable? routes = null)
     {
+        _routes = routes ?? new RouteTable();
         var uri = new Uri(publicUrl);
         _publicScheme = uri.Scheme;
         _publicPort = uri.IsDefaultPort ? null : uri.Port.ToString();
@@ -115,7 +113,7 @@ public sealed partial class Translator
 
         if (!TryRouteId(host, out var id)) return _primary;
         if (string.IsNullOrEmpty(id)) return _primary;
-        return _idToTarget.TryGetValue(id, out var target) ? target : null;
+        return _routes.TryGetTarget(id, out var target) ? target : null;
     }
 
     public string PublicScheme => _publicScheme;
@@ -167,7 +165,7 @@ public sealed partial class Translator
 
         var targetBase = uri.Scheme + "://" + CanonicalHost(host) + (port ?? "");
         if (string.Equals(targetBase, _primary, StringComparison.OrdinalIgnoreCase)) return _apexOrigin;
-        var id = GetOrAllocateId(targetBase);
+        var id = _routes.GetOrAllocateId(targetBase);
         return _publicScheme + "://" + _mainsub + "--" + id + "." + _baseDomain + (_publicPort is null ? "" : ":" + _publicPort);
     }
 
@@ -193,13 +191,4 @@ public sealed partial class Translator
         };
     }
 
-    private string GetOrAllocateId(string targetBase)
-    {
-        if (_targetToId.TryGetValue(targetBase, out var existing)) return existing;
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(targetBase))).ToLowerInvariant();
-        var id = "r" + hash[..10];
-        _idToTarget[id] = targetBase;
-        _targetToId[targetBase] = id;
-        return id;
-    }
 }

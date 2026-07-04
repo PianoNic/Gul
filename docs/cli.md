@@ -114,8 +114,10 @@ Everything the CLI remembers lives in a single JSON file:
 - **`TranslateHosts`** is the list of hosts to rewrite when `Translate` is `allowlist`, and it is ignored in the other modes.
 - Delete the file to start completely fresh, or re-run `gul remote <url>` to repoint at a different server.
 
+Alongside it, gul keeps a small **route cache** at `~/.gul/routes-<port>.json` — the translator's map of route id → local origin. It's reloaded on start and kept across reconnects, so a browser holding already-translated URLs keeps working after the client reconnects or restarts instead of needing a hard refresh. It's safe to delete; the routes are relearned as pages load.
+
 ::: warning
-The file holds live access and refresh tokens in plain text. It's created under your home directory with your user's permissions, so treat it like any other credential file and don't commit it.
+The `config.json` file holds live access and refresh tokens in plain text. It's created under your home directory with your user's permissions, so treat it like any other credential file and don't commit it.
 :::
 
 ## How forwarding behaves

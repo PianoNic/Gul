@@ -70,6 +70,40 @@ public class TranslatorTests
     }
 
     [Test]
+    public void RouteTable_persists_and_reloads_across_instances()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gul-routes-{Guid.NewGuid():N}.json");
+        try
+        {
+            var first = RouteTable.Load(path);
+            var id = first.GetOrAllocateId("http://localhost:8123");
+
+            var reloaded = RouteTable.Load(path);
+            if (!reloaded.TryGetTarget(id, out var target) || target != "http://localhost:8123")
+                throw new Exception($"reloaded route did not resolve: id='{id}' target='{target}'");
+        }
+        finally { try { File.Delete(path); } catch { } }
+    }
+
+    [Test]
+    public void Translators_sharing_a_route_table_resolve_each_others_routes()
+    {
+        var routes = new RouteTable();
+        var first = new Translator(PublicUrl, PrimaryPort, "all", null, routes);
+        var output = Encoding.UTF8.GetString(first.RewriteBody(Encoding.UTF8.GetBytes("x http://localhost:8000/a")));
+        var routeHost = RouteHostPattern.Match(output).Value;
+        if (string.IsNullOrEmpty(routeHost))
+            throw new Exception($"could not extract route host from: '{output}'");
+
+        // A reconnect builds a brand-new Translator; sharing the table, it must still resolve the route
+        // instead of forgetting it (which is what forced a hard refresh before).
+        var afterReconnect = new Translator(PublicUrl, PrimaryPort, "all", null, routes);
+        var resolved = afterReconnect.ResolveTarget(routeHost);
+        if (resolved != "http://localhost:8000")
+            throw new Exception($"reconnected translator did not resolve shared route: '{resolved}'");
+    }
+
+    [Test]
     public void Mode_loopback_leaves_external_hosts_while_mode_all_rewrites_them()
     {
         var input = "img https://cdn.example.com/x end";
