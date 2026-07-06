@@ -18,7 +18,11 @@ public sealed class TunnelClient
 
     private readonly Config _config;
     private readonly int _port;
-    private readonly string? _requestedName;
+    // The name to request on the next (re)connect. Starts as the user's --name, then holds the
+    // subdomain the server actually granted so a reconnect reclaims the same URL instead of a
+    // fresh random one. (Race: if the dropped connection's cleanup hasn't freed the name yet,
+    // the reclaim loses and a new name is drawn — no worse than before.)
+    private string? _requestedName;
 
     private readonly HttpClient _http;
     private readonly RouteTable _routes;
@@ -66,6 +70,7 @@ public sealed class TunnelClient
             try
             {
                 var url = await connection.InvokeAsync<string>("Register", _requestedName, CancellationToken.None);
+                _requestedName = SubdomainOf(url) ?? _requestedName;
                 _translator = new Translator(url, _port, _config.Translate, _config.TranslateHosts, _routes);
                 Console.WriteLine($"{Ui.Green("Reconnected.")}  {Ui.Url(url)}  {Ui.Dim("->")}  {Ui.Dim($"http://localhost:{_port}")}");
             }
@@ -79,6 +84,7 @@ public sealed class TunnelClient
         try
         {
             var publicUrl = await connection.InvokeAsync<string>("Register", _requestedName, ct);
+            _requestedName = SubdomainOf(publicUrl) ?? _requestedName;
             _translator = new Translator(publicUrl, _port, _config.Translate, _config.TranslateHosts, _routes);
             Console.WriteLine();
             Console.WriteLine($"  {Ui.Badge}  {Ui.Green("Tunnel live")}");
@@ -406,6 +412,13 @@ public sealed class TunnelClient
             try { socket.Ws.Abort(); } catch { }
         }
         _pendingClose.Clear();
+    }
+
+    // First DNS label of the granted URL — the registered subdomain, which is a single label
+    // (letters/digits/hyphen, no dots), so everything before the first '.' is it.
+    private static string? SubdomainOf(string url)
+    {
+        try { return new Uri(url).Host.Split('.')[0]; } catch { return null; }
     }
 
     private static Uri BuildWsUri(string target, string path)
