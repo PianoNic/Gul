@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Channels;
@@ -203,6 +204,17 @@ public sealed class TunnelClient
                     if (headers.TryGetValue("Access-Control-Allow-Origin", out var acao) && acao.Length > 0 && !string.IsNullOrEmpty(acao[0]))
                         headers["Access-Control-Allow-Origin"] = [.. acao.Select(_translator.RewriteLocation)];
                 }
+            }
+
+            // Accept-Encoding was stripped on the way in, so the local app answered in plaintext.
+            // gzip text bodies here and let the browser decode natively (Content-Encoding: gzip):
+            // the server forwards both untouched, so both internet hops carry the smaller payload.
+            if (_translator is not null && _translator.IsTextResponse(headers)
+                && responseBody.Length > 1024 && !headers.ContainsKey("Content-Encoding"))
+            {
+                responseBody = Gzip(responseBody);
+                headers["Content-Encoding"] = ["gzip"];
+                headers.Remove("Content-Length"); // the server restamps it from the compressed length
             }
 
             return new TunnelResponse((int)response.StatusCode, headers, responseBody);
@@ -431,6 +443,14 @@ public sealed class TunnelClient
         }
         catch { /* already closing */ }
         finally { socket.SendLock.Release(); }
+    }
+
+    private static byte[] Gzip(byte[] data)
+    {
+        using var output = new MemoryStream();
+        using (var gz = new GZipStream(output, CompressionLevel.Fastest))
+            gz.Write(data, 0, data.Length);
+        return output.ToArray();
     }
 
     private static TunnelResponse TextResponse(int status, string message)
