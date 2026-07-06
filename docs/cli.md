@@ -128,5 +128,6 @@ A few things worth knowing when a tunnel is live:
 - **Redirects aren't followed.** The CLI forwards your app's `3xx` responses as-is, so the visitor's browser sees them, and relative redirects keep working through the public URL.
 - **The local app must be running.** If nothing answers on the target port, the visitor gets a clean `502` with a short text body instead of a hang.
 - **WebSockets are tunneled.** `ws(s)://` upgrades ride the same connection, with subprotocols negotiated end to end, so Vite/Angular HMR, live reload, and realtime apps work through the public URL. HTTP request and response bodies are still buffered in memory rather than streamed, so Gul is built for developing and demoing web apps, not high-throughput file transfer.
+- **Text responses are compressed.** HTML, CSS, JS and JSON come back gzip-encoded to the browser even when your local server sent them plain, so pages and assets travel smaller over both network hops.
 
 See also: [Auto-router translator](./translator.md) · [Self-host Gul](./self-host.md) · [What is Gul?](./intro.md)
