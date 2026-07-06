@@ -126,6 +126,7 @@ A few things worth knowing when a tunnel is live:
 
 - **Cross-service URLs are rewritten.** By default Gul translates absolute `http(s)` URLs in the response body and the `Location` header into gul routes, so a multi-service local setup works through one tunnel. Tune it with `--translate` or turn it off with `--no-translate`. See [Auto-router translator](./translator.md).
 - **Redirects aren't followed.** The CLI forwards your app's `3xx` responses as-is, so the visitor's browser sees them, and relative redirects keep working through the public URL.
+- **Your URL survives reconnects.** If the connection drops and the client reconnects, it reclaims the same subdomain, so the public URL stays put mid-session — even without `--name`. A full `gul` restart still draws a fresh random name unless you pass `--name`.
 - **The local app must be running.** If nothing answers on the target port, the visitor gets a clean `502` with a short text body instead of a hang.
 - **WebSockets are tunneled.** `ws(s)://` upgrades ride the same connection, with subprotocols negotiated end to end, so Vite/Angular HMR, live reload, and realtime apps work through the public URL. HTTP request and response bodies are still buffered in memory rather than streamed, so Gul is built for developing and demoing web apps, not high-throughput file transfer.
 
